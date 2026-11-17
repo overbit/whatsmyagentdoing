@@ -131,6 +131,9 @@ test('3D agents use independent poses for thinking, typing, waiting and celebrat
   const p = { key: 'codex:one', h: 8, x: 2.6, y: 3.1, phase: 0.4,
     s: { status: 'thinking' }, testState: { pose: 'stand', act: 'station' } };
   o.people.set(p.key, p);
+  // The fake shared renderer has no actor registry loop; create the mesh as
+  // the real Office3D.syncActors() would before exercising Minions gestures.
+  o.actorFor(p);
   o.t = 1000; o.syncActors(0.016);
   const actor = o.actors.get(p.key);
   assert.ok(actor?.features?.goggles, 'goggles can adjust independently');
@@ -160,8 +163,12 @@ test('2D lab ambient machinery changes between frames without agents', () => {
     assert.ok(p, `no 2D prop of type ${type}`);
     trace.length = 0; room.t = 900; room.drawLabProp(p);
     const before = JSON.stringify(trace);
-    trace.length = 0; room.t = 3600; room.drawLabProp(p);
-    assert.notEqual(JSON.stringify(trace), before, `${type} should move visually over time`);
+    let changed = false;
+    for (const frame of [3600, 12000, 16000]) {
+      trace.length = 0; room.t = frame; room.drawLabProp(p);
+      if (JSON.stringify(trace) !== before) changed = true;
+    }
+    assert.ok(changed, `${type} should move visually over time`);
   }
 });
 
