@@ -125,6 +125,47 @@ test('3D machinery animates every frame without any live sessions', () => {
   assert.notEqual(drone.position.x, newDroneX, 'drone keeps patrolling');
 });
 
+test('3D console indicators react to session status and release the workstation', () => {
+  const { office } = fakeThree();
+  const o = office();
+  const desk = def.stations[0];
+  const consoleFx = o.labFx.consoles[0];
+  const worker = { key: 'codex:one', mode: 'work', desk, helpSpot: null,
+    s: { status: 'typing' } };
+  o.people.set(worker.key, worker);
+  o.t = 1000; o.syncActors(0.016);
+  assert.equal(consoleFx.status, 'typing');
+  assert.equal(consoleFx.screen.material.color.value, '#47e9b0');
+  worker.s.status = 'tool';
+  o.t = 2000; o.syncActors(0.016);
+  assert.equal(consoleFx.status, 'tool');
+  assert.equal(consoleFx.screen.material.color.value, '#ffbd55');
+  worker.s.status = 'waiting'; worker.helpSpot = { x: 10, y: 10 };
+  o.t = 2500; o.syncActors(0.016);
+  assert.equal(consoleFx.status, null, 'absent worker no longer colors console');
+});
+
+test('render ticks reuse the same ambient meshes and reset on map changes', () => {
+  const { office } = fakeThree();
+  const o = office();
+  const tank = o.labFx.tanks[0];
+  const bubbles = tank.bubbles.slice();
+  const initialGroups = o.room.children.length;
+  for (let step = 0; step < 120; step++) {
+    o.t = step * 83; o.syncActors(0.016);
+  }
+  assert.equal(o.room.children.length, initialGroups, 'no new meshes during animation');
+  assert.deepEqual(tank.bubbles, bubbles, 'no per-frame bubble recreation');
+  o.plan.scene = { id: 'pirate', props: [] };
+  o.build();
+  assert.equal(o.labFx, null, 'leaving the lab drops all lab animation registrations');
+  o.t = 30000;
+  assert.doesNotThrow(() => o.syncActors(0.016));
+  o.plan.scene = def;
+  o.build();
+  assert.equal(o.labFx.tanks.length, 2, 'returning to lab does not duplicate registrations');
+});
+
 test('3D agents use independent poses for thinking, typing, waiting and celebration', () => {
   const { office } = fakeThree();
   const o = office();
