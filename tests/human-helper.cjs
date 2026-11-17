@@ -86,6 +86,51 @@ test('waiting agents visit the human and return to their assigned desks in the n
   assert.deepEqual({...a.path.at(-1)}, {...deskA.seat});
 });
 
+
+test('a high-visibility help point has a clear stage and distinct visitor positions', () => {
+  for (const n of [0, 8, 20]) {
+    const office = builtInOffice(n);
+    const { helper, grid } = office.plan;
+    assert.ok(helper.stageRadius >= 0.45, 'stage footprint is recorded for renderer parity');
+    assert.ok(helper.stageRadius <= 0.8);
+    for (const [dx, dy] of [[0, 0], [0.32, 0], [-0.32, 0], [0, 0.32], [0, -0.32]]) {
+      assert.equal(grid.blocked(helper.x + dx, helper.y + dy), false,
+        'highlight ring must avoid solid furniture');
+    }
+    assert.ok(helper.spots.every((p) => Math.hypot(p.x - helper.x, p.y - helper.y) >= 0.8),
+      'queue spots remain outside the help pedestal');
+  }
+});
+
+test('shared 2D rendering gives the human a visible floor landmark and readable screen badge', () => {
+  const office = builtInOffice();
+  const fills = [], labels = [];
+  office.t = 1000;
+  office.ctx = new Proxy({ save() {}, restore() {}, fillText(s) { labels.push(s); },
+    beginPath() {}, arc() {}, fill() {}, stroke() {} }, {
+    get(target, name) { return name in target ? target[name] : () => {}; },
+    set(target, name, value) { target[name] = value; return true; },
+  });
+  office.poly = (_pts, fill) => fills.push(fill);
+  office.drawHelperPad();
+  assert.ok(fills.includes('#ffcf4a'), 'marker has a gold outer ring');
+  assert.ok(fills.includes('#34cbd5'), 'marker has a distinct cyan centre');
+  office.roundRect = () => {};
+  office.drawHelperBadge(140, 80, 0);
+  assert.ok(labels.includes('HUMAN'));
+  assert.ok(labels.includes('HELP STATION'));
+  labels.length = 0;
+  office.drawHelperBadge(140, 80, 2);
+  assert.ok(labels.some((s) => /2.*WAITING/.test(s)), 'active input requests are readable');
+});
+
+test('3D has a scene-based illuminated help marker and persistent overlay badge', () => {
+  const mod = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8');
+  assert.match(mod, /function buildHelpStation/);
+  assert.match(mod, /this\.humanHelper\.station/);
+  assert.match(mod, /this\.drawHelperBadge/);
+});
+
 test('a session already waiting when the dashboard opens visibly walks to the human', () => {
   const office = builtInOffice(4);
   office.first = true;
