@@ -500,6 +500,24 @@
         for (const p of this.people.values()) { p.poi = null; p.napDesk = null; p.desk = null; p.until = 0; }
       }
 
+      // In scenes with a human helper, waiting sessions leave their desks to
+      // ask for input. Keep each visitor's spot stable across snapshots.
+      const helpSpots = this.plan.helper?.spots || [];
+      const waitingKeys = new Set(working.filter((s) => s.status === 'waiting').map((s) => s.key));
+      const helpOf = new Map();
+      const takenHelp = new Set();
+      for (const [key, person] of this.people) {
+        if (!waitingKeys.has(key) || !helpSpots.includes(person.helpSpot) || takenHelp.has(person.helpSpot)) continue;
+        helpOf.set(key, person.helpSpot);
+        takenHelp.add(person.helpSpot);
+      }
+      for (const session of working) {
+        if (session.status !== 'waiting' || helpOf.has(session.key) || !helpSpots.length) continue;
+        const spot = helpSpots.find((candidate) => !takenHelp.has(candidate)) || helpSpots[0];
+        helpOf.set(session.key, spot);
+        takenHelp.add(spot);
+      }
+
       const workKeys = new Set(working.map((s) => s.key));
       for (const k of [...this.deskOf.keys()]) if (!workKeys.has(k)) this.deskOf.delete(k);
       const used = new Set(this.deskOf.values());
@@ -527,10 +545,16 @@
         if (isWorker) {
           this.release(p);
           const desk = desks[this.deskOf.get(s.key)];
-          if (p.desk !== desk || p.mode !== 'work') { p.desk = desk; this.goTo(p, desk.seat); }
+          const helpSpot = helpOf.get(s.key) || null;
+          if (p.desk !== desk || p.mode !== 'work' || p.helpSpot !== helpSpot) {
+            p.desk = desk;
+            p.helpSpot = helpSpot;
+            this.goTo(p, helpSpot || desk.seat);
+          }
           p.mode = 'work';
         } else {
           if (p.mode !== 'wander') { p.mode = 'wander'; p.desk = null; p.poi = null; p.until = 0; }
+          p.helpSpot = null;
           // Someone started working at the desk this one was napping on.
           if (p.napDesk && takenDesks.has(p.napDesk)) { this.release(p); p.path = []; }
         }
@@ -541,6 +565,7 @@
           p.mode = 'leave';
           this.release(p);
           p.desk = null;
+          p.helpSpot = null;
           this.goTo(p, this.plan.door);
         }
       }
@@ -556,7 +581,7 @@
       const h = hash(s.key);
       const door = this.plan.door;
       return {
-        key: s.key, h, s,
+        key: s.key, h, s, helpSpot: null,
         skin: pick(SKIN, h, 3), hair: pick(HAIR, h, 7), pants: pick(PANTS, h, 13),
         shirt: pick(SHIRT[s.agent] || SHIRT.claude, h, 11),
         hairStyle: h % 4,
