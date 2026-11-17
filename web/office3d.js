@@ -48,7 +48,7 @@ function scenePlan(def) {
   }));
   return {
     W: def.W, D: def.D, viewH: def.viewH, grid, items: [], props: [], pois, desks,
-    windows: [], posters: [], pp: null, door: def.spawn, fixed: true, noNap: true, terrain: !!def.terrain, scene: def,
+    windows: [], posters: [], pp: null, door: def.spawn, helper: def.helper, fixed: true, noNap: true, terrain: !!def.terrain, scene: def,
   };
 }
 
