@@ -337,6 +337,13 @@ export function installMinions3D(Office3D, T) {
         a.limbs.leftArm.rotation.x = -0.38 + Math.sin(time * 1.6) * 0.22;
         // Sometimes a thinking Minion scratches or readjusts its goggles.
         if (Math.sin(time * 0.8) > 0.85) a.limbs.rightArm.rotation.z = 2.05;
+      } else if (st.act === 'read') {
+        a.limbs.leftArm.rotation.x = -0.65 + Math.sin(time * 0.8) * 0.08;
+        a.limbs.rightArm.rotation.x = -0.65 - Math.sin(time * 0.8) * 0.08;
+      } else if (st.act === 'coffee' || st.act === 'water') {
+        a.limbs.rightArm.rotation.x = -0.9 + Math.sin(time * 1.1) * 0.13;
+      } else if (st.act === 'arcade' || st.act === 'whiteboard') {
+        a.limbs.rightArm.rotation.x = -0.8 + Math.sin(time * 7) * 0.25;
       } else {
         a.limbs.leftArm.rotation.x = Math.sin(time * 0.72) * 0.12;
         a.limbs.rightArm.rotation.x = -Math.sin(time * 0.72) * 0.12;
