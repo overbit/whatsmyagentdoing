@@ -432,6 +432,42 @@ async function drawnLogos(target) {
   }
   check('settings close with Escape/outside click, restore focus, and fit narrow and wide screens in both themes');
   }
+  // The optional laboratory uses the same session state in 2D and 3D.
+  // Its human helper must never create a fake session in the agent panel.
+  const labPage = await context.newPage();
+  await labPage.goto(base + '/?view=office&quality=mid&scene=minions');
+  await labPage.waitForFunction(() => officeKind === 'mid:minions' && office.framesShown > 4);
+  await stable(labPage);
+  assert.equal(await labPage.evaluate(() => {
+    const visitor = office.people.get('codex:two');
+    return !!office.plan.helper && office.plan.items.some((item) => item.human) &&
+      !!visitor.helpSpot && visitor.s.status === 'waiting' &&
+      !office.people.has('human');
+  }), true);
+  await screenshot(labPage, 'minions-helper-2d');
+  check('2D laboratory draws a separate human and routes waiting agents to it');
+
+  await labPage.click('#qualSeg [data-v=high]');
+  await labPage.waitForFunction(() => officeKind === 'high:minions' &&
+    office.loaded && office.humanHelper && office.framesShown > 4, {}, { timeout: 30000 });
+  assert.equal(await labPage.evaluate(() => {
+    const visitor = office.people.get('codex:two');
+    return !!office.humanHelper.obj && !!visitor.helpSpot &&
+      !office.people.has('human');
+  }), true);
+  await screenshot(labPage, 'minions-helper-3d');
+  await labPage.evaluate((updated) => onData({ now: Date.now(), sessions: updated }),
+    sessions.map((s) => s.key === 'codex:two' ? { ...s, status: 'typing' } : s));
+  assert.equal(await labPage.evaluate(() => {
+    const p = office.people.get('codex:two');
+    const goal = p.path.at(-1);
+    return p.helpSpot === null && goal &&
+      Math.abs(goal.x - p.desk.seat.x) < 0.01 &&
+      Math.abs(goal.y - p.desk.seat.y) < 0.01;
+  }), true);
+  check('3D laboratory human stays visible while resumed agents return to work');
+  await labPage.close();
+
   assert.deepEqual(errors,[]);check('no uncaught browser errors');
   console.log('TOTAL',checks.length);
  } finally {
