@@ -2,7 +2,7 @@
 // Only the opt-in lab scene uses these meshes; other scenes are untouched.
 export function installMinions3D(Office3D, T) {
   const { Group, Mesh, MeshStandardMaterial, MeshBasicMaterial,
-    BoxGeometry, CylinderGeometry, SphereGeometry, ConeGeometry, PointLight } = T;
+    BoxGeometry, CylinderGeometry, SphereGeometry, ConeGeometry } = T;
   const skin = mat('#f9d539'), denim = mat('#27649b'), steel = mat('#a9b8c1', 0.35, 0.55);
   const dark = mat('#263545'), boots = mat('#252c35'), glass = mat('#e6fcff', 0.15, 0.12);
   const eyeWhite = mat('#fffdf1'), iris = mat('#795238'), black = mat('#222735');
@@ -131,36 +131,6 @@ export function installMinions3D(Office3D, T) {
     return { obj, arm: arms[1] };
   }
 
-  // A low, luminous floor landmark that stays visible in bright cafés,
-  // dark castles and the Minions laboratory without blocking walkable tiles.
-  function buildHelpStation(radius) {
-    const obj = new Group();
-    const baseMat = mat('#193549', 0.8);
-    const rimMat = mat('#ffcf4a', 0.55, 0.05, '#ffcf4a');
-    const ringMat = mat('#34cbd5', 0.48, 0.05, '#34cbd5');
-    const centerMat = mat('#193549', 0.8);
-    const flat = (r, y, height, material) => {
-      const m = tube(obj, 0, y, 0, r, height, material);
-      m.castShadow = false;
-      m.receiveShadow = false;
-      return m;
-    };
-    flat(radius * 1.08, 0.014, 0.025, baseMat);
-    const rim = flat(radius, 0.03, 0.013, rimMat);
-    flat(radius * 0.77, 0.04, 0.011, baseMat);
-    const ring = flat(radius * 0.65, 0.05, 0.009, ringMat);
-    flat(radius * 0.44, 0.056, 0.01, centerMat);
-    for (let k = 0; k < 4; k++) {
-      const a = k * Math.PI / 2;
-      ball(obj, Math.cos(a) * radius * 0.91, 0.062,
-        Math.sin(a) * radius * 0.91, 0.038, eyeWhite);
-    }
-    const light = new PointLight(0xffdb75, 0.25, 3.5);
-    light.position.set(0, 1.4, 0);
-    obj.add(light);
-    return { obj, rim, ring, light };
-  }
-
   const originalBuild = Office3D.prototype.build;
   Office3D.prototype.build = function () {
     originalBuild.call(this);
@@ -170,12 +140,10 @@ export function installMinions3D(Office3D, T) {
     const { x, y } = this.plan.helper;
     // Packs can have raised terrain; keep the helper on the walkable surface.
     const ground = this.plan.scene ? this.surfaceAt(x, y) : 0;
-    const station = buildHelpStation(this.plan.helper.stageRadius || 0.75);
-    station.obj.position.set(x, ground, y);
-    human.obj.position.set(x, ground + 0.06, y);
+    human.obj.position.set(x, ground, y);
     human.obj.rotation.y = 0.32;
-    this.room.add(station.obj, human.obj);
-    this.humanHelper = { ...human, station };
+    this.room.add(human.obj);
+    this.humanHelper = human;
   };
 
   const originalFacing = Office3D.prototype.facing;
@@ -232,11 +200,6 @@ export function installMinions3D(Office3D, T) {
         (p) => p.helpSpot && p.s.status === 'waiting',
       );
       this.humanHelper.arm.rotation.z = waiting ? 2.7 + Math.sin(this.t / 240) * 0.13 : 0;
-      const { rim, ring, light } = this.humanHelper.station;
-      const pulse = 0.5 + Math.sin(this.t / 240) * 0.5;
-      rim.material.emissiveIntensity = waiting ? 0.65 + pulse * 0.65 : 0.45;
-      ring.material.emissiveIntensity = waiting ? 0.6 + pulse * 0.5 : 0.55;
-      light.intensity = waiting ? 0.65 + pulse * 0.45 : 0.25;
     }
     if (!isLab(this)) return;
     for (const p of this.people.values()) {
