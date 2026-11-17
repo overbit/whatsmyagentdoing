@@ -16,6 +16,16 @@ OMP support: [paths, profiles, Resume and limitations](docs/omp.md).
 
 <sub>Recorded with `--demo` (a made-up team), so no real sessions are shown.</sub>
 
+## Minion Mission Control theme
+
+This fork gives the dashboard a playful **Minions-inspired laboratory** skin across its list, isometric (2D), and high-quality (3D) office modes. Workers have yellow capsule bodies, denim overalls, silver goggles, and different hair/eye silhouettes. The 2D renderer draws them directly to canvas; the 3D renderer builds them locally from geometry already bundled with the application. No external images, CDN, or additional runtime dependency are needed.
+
+The normal agent lifecycle remains unchanged: working and waiting states, walking, hovering, clicking, name tags, tool-status monitors, fullscreen mode, picture-in-picture, language switching, and live updates still use the existing simulation. 3D downloadable scene packs remain supported; where a pack does not contain a compatible sphere or box primitive, its original actor models are retained rather than breaking rendering.
+
+Run the theme-specific checks with \`node --test tests/minions.cjs\`. The full browser suite remains \`npm run test:ui\` (requires Playwright/Chrome and installed dependencies).
+
+*Unofficial fan-made visual theme. Not affiliated with or endorsed by Illumination or Universal Pictures.*
+
 ## Install
 
 **Easiest: ask your agent.** Paste this into Claude Code or Codex:
