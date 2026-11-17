@@ -93,8 +93,8 @@ test('a human helper is present at a fixed, accessible location for both rendere
   const twoD = fs.readFileSync(path.join(root, 'public/minions2d.js'), 'utf8');
   const threeD = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8');
   const plan3D = fs.readFileSync(path.join(root, 'web/office3d.js'), 'utf8');
-  assert.match(twoD, /class MinionsOffice extends window\\.Office/);
-  assert.match(fs.readFileSync(path.join(root, 'public/office.js'), 'utf8'), /drawHuman\\(\\)/);
+  assert.match(twoD, /class MinionsOffice extends window\.Office/);
+  assert.match(fs.readFileSync(path.join(root, 'public/office.js'), 'utf8'), /drawHuman\(\)/);
   assert.match(threeD, /buildHuman/);
   assert.match(plan3D, /helper: def\.helper/);
 });
