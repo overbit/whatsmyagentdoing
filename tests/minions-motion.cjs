@@ -261,6 +261,32 @@ test('3D off-duty reading and coffee actions animate hands independently of sess
   assert.ok(a.limbs.rightArm.rotation.x < -0.3, 'coffee lifts right hand');
 });
 
+test('nearby idle Minions occasionally greet each other in both renderers', () => {
+  const { room, trace } = fake2D();
+  const p = { key: 'idle:a', h: 7, phase: 0, x: 3, y: 4,
+    s: { status: 'idle' }, testState: { pose: 'stand', act: null, sitZ: 0 } };
+  const neighbor = { key: 'idle:b', x: 4, y: 4, s: { status: 'idle' } };
+  room.stateOf = (person) => person.testState;
+  room.t = 2800; room.person(p);
+  const alone = JSON.stringify(trace.filter((x) => x[0] === 'lineTo').slice(0, 2));
+  room.people.set(p.key, p);
+  room.people.set(neighbor.key, neighbor);
+  trace.length = 0; room.person(p);
+  assert.notEqual(JSON.stringify(trace.filter((x) => x[0] === 'lineTo').slice(0, 2)),
+    alone, '2D Minion waves to a nearby companion');
+
+  const { office } = fakeThree();
+  const o = office();
+  o.people.set(p.key, p);
+  p.testState = { pose: 'stand', act: null };
+  const actor = o.actorFor(p);
+  o.t = 2800; o.syncActors(0.016);
+  const solo = actor.limbs.rightArm.rotation.z;
+  o.people.set(neighbor.key, neighbor);
+  o.syncActors(0.016);
+  assert.notEqual(actor.limbs.rightArm.rotation.z, solo, '3D Minion greets its neighbor');
+});
+
 test('animation remains isolated to Minions Lab', () => {
   const { office } = fakeThree();
   const pirate = office({ id: 'pirate', props: [] });
