@@ -97,6 +97,12 @@ test('a high-visibility help point has a clear stage and distinct visitor positi
       assert.equal(grid.blocked(helper.x + dx, helper.y + dy), false,
         'highlight ring must avoid solid furniture');
     }
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4;
+      const x = helper.x + Math.cos(a) * helper.stageRadius * 1.08;
+      const y = helper.y + Math.sin(a) * helper.stageRadius * 1.08;
+      assert.equal(grid.blocked(x, y), false, 'entire visible platform avoids furniture');
+    }
     assert.ok(helper.spots.every((p) => Math.hypot(p.x - helper.x, p.y - helper.y) >= 0.8),
       'queue spots remain outside the help pedestal');
   }
