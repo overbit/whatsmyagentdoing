@@ -131,6 +131,36 @@ export function installMinions3D(Office3D, T) {
     return { obj, arm: arms[1] };
   }
 
+  // A low, luminous floor landmark that stays visible in bright cafés,
+  // dark castles and the Minions laboratory without blocking walkable tiles.
+  function buildHelpStation(radius) {
+    const obj = new Group();
+    const baseMat = mat('#193549', 0.8);
+    const rimMat = mat('#ffcf4a', 0.55, 0.05, '#ffcf4a');
+    const ringMat = mat('#34cbd5', 0.48, 0.05, '#34cbd5');
+    const centerMat = mat('#193549', 0.8);
+    const flat = (r, y, height, material) => {
+      const m = tube(obj, 0, y, 0, r, height, material);
+      m.castShadow = false;
+      m.receiveShadow = false;
+      return m;
+    };
+    flat(radius * 1.08, 0.014, 0.025, baseMat);
+    const rim = flat(radius, 0.03, 0.013, rimMat);
+    flat(radius * 0.77, 0.04, 0.011, baseMat);
+    const ring = flat(radius * 0.65, 0.05, 0.009, ringMat);
+    flat(radius * 0.44, 0.056, 0.01, centerMat);
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2;
+      ball(obj, Math.cos(a) * radius * 0.91, 0.062,
+        Math.sin(a) * radius * 0.91, 0.038, eyeWhite);
+    }
+    const light = new PointLight(0xffdb75, 0.25, 3.5);
+    light.position.set(0, 1.4, 0);
+    obj.add(light);
+    return { obj, rim, ring, light };
+  }
+
   const originalBuild = Office3D.prototype.build;
   Office3D.prototype.build = function () {
     originalBuild.call(this);
@@ -140,10 +170,12 @@ export function installMinions3D(Office3D, T) {
     const { x, y } = this.plan.helper;
     // Packs can have raised terrain; keep the helper on the walkable surface.
     const ground = this.plan.scene ? this.surfaceAt(x, y) : 0;
-    human.obj.position.set(x, ground, y);
+    const station = buildHelpStation(this.plan.helper.stageRadius || 0.75);
+    station.obj.position.set(x, ground, y);
+    human.obj.position.set(x, ground + 0.06, y);
     human.obj.rotation.y = 0.32;
-    this.room.add(human.obj);
-    this.humanHelper = human;
+    this.room.add(station.obj, human.obj);
+    this.humanHelper = { ...human, station };
   };
 
   const originalFacing = Office3D.prototype.facing;
@@ -160,28 +192,17 @@ export function installMinions3D(Office3D, T) {
     const result = originalDraw.call(this);
     if (result === false || !this.humanHelper) return result;
 
-    // Reuse the existing canvas overlay for a legible world-anchored label.
+    // Project to screen-space so the same badge stays legible at any zoom.
     const p = this.humanHelper.obj.position.clone();
-    p.y += 1.98;
+    p.y += 2.12;
     p.project(this.camera);
     if (p.z < -1 || p.z > 1) return result;
     const x = (p.x + 1) * this.cw / 2;
-    const y = (1 - p.y) * this.ch / 2;
+    const y = (1 - p.y) * this.ch / 2 - 35;
     const ctx = this.ctx;
     ctx.save();
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.roundRect(x - 27, y - 11, 54, 20, 8, '#203a4b');
-    ctx.font = '800 11px ui-sans-serif, system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#fff4ca';
-    ctx.fillText('HUMAN', x, y - 1);
-    if ([...this.people.values()].some((a) => a.helpSpot && a.s.status === 'waiting')) {
-      this.roundRect(x + 27, y - 14, 23, 23, 8, '#ffdc42');
-      ctx.font = '900 15px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillStyle = '#203a4b';
-      ctx.fillText('?', x + 38.5, y - 2);
-    }
+    this.drawHelperBadge(x, y, this.helperWaiting());
     ctx.restore();
     return result;
   };
@@ -211,6 +232,11 @@ export function installMinions3D(Office3D, T) {
         (p) => p.helpSpot && p.s.status === 'waiting',
       );
       this.humanHelper.arm.rotation.z = waiting ? 2.7 + Math.sin(this.t / 240) * 0.13 : 0;
+      const { rim, ring, light } = this.humanHelper.station;
+      const pulse = 0.5 + Math.sin(this.t / 240) * 0.5;
+      rim.material.emissiveIntensity = waiting ? 0.65 + pulse * 0.65 : 0.45;
+      ring.material.emissiveIntensity = waiting ? 0.6 + pulse * 0.5 : 0.55;
+      light.intensity = waiting ? 0.65 + pulse * 0.45 : 0.25;
     }
     if (!isLab(this)) return;
     for (const p of this.people.values()) {
