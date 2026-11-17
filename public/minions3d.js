@@ -131,13 +131,16 @@ export function installMinions3D(Office3D, T) {
     return { obj, arm: arms[1] };
   }
 
-  const originalBuildScene = Office3D.prototype.buildScene;
-  Office3D.prototype.buildScene = function () {
-    originalBuildScene.call(this);
+  const originalBuild = Office3D.prototype.build;
+  Office3D.prototype.build = function () {
+    originalBuild.call(this);
     this.humanHelper = null;
-    if (!isLab(this) || !this.plan.helper) return;
+    if (!this.plan.helper) return;
     const human = buildHuman();
-    human.obj.position.set(this.plan.helper.x, 0, this.plan.helper.y);
+    const { x, y } = this.plan.helper;
+    // Packs can have raised terrain; keep the helper on the walkable surface.
+    const ground = this.plan.scene ? this.surfaceAt(x, y) : 0;
+    human.obj.position.set(x, ground, y);
     human.obj.rotation.y = 0.32;
     this.room.add(human.obj);
     this.humanHelper = human;
@@ -145,7 +148,7 @@ export function installMinions3D(Office3D, T) {
 
   const originalFacing = Office3D.prototype.facing;
   Office3D.prototype.facing = function (person, state) {
-    if (isLab(this) && person.helpSpot && state.pose !== 'walk') {
+    if (this.plan.helper && person.helpSpot && state.pose !== 'walk') {
       const helper = this.plan.helper;
       return Math.atan2(helper.x - person.x, helper.y - person.y);
     }
@@ -155,7 +158,7 @@ export function installMinions3D(Office3D, T) {
   const originalDraw = Office3D.prototype.draw;
   Office3D.prototype.draw = function () {
     const result = originalDraw.call(this);
-    if (result === false || !isLab(this) || !this.humanHelper) return result;
+    if (result === false || !this.humanHelper) return result;
 
     // Reuse the existing canvas overlay for a legible world-anchored label.
     const p = this.humanHelper.obj.position.clone();
@@ -203,6 +206,12 @@ export function installMinions3D(Office3D, T) {
   const originalSync = Office3D.prototype.syncActors;
   Office3D.prototype.syncActors = function (dt) {
     originalSync.call(this, dt);
+    if (this.humanHelper) {
+      const waiting = [...this.people.values()].some(
+        (p) => p.helpSpot && p.s.status === 'waiting',
+      );
+      this.humanHelper.arm.rotation.z = waiting ? 2.7 + Math.sin(this.t / 240) * 0.13 : 0;
+    }
     if (!isLab(this)) return;
     for (const p of this.people.values()) {
       const a = this.actors.get(p.key);
@@ -219,12 +228,6 @@ export function installMinions3D(Office3D, T) {
         a.limbs.leftArm.rotation.x = -0.75 + Math.sin(time * 17) * 0.18;
         a.limbs.rightArm.rotation.x = -0.75 - Math.sin(time * 17) * 0.18;
       }
-    }
-    if (this.humanHelper) {
-      const waiting = [...this.people.values()].some(
-        (p) => p.helpSpot && p.s.status === 'waiting',
-      );
-      this.humanHelper.arm.rotation.z = waiting ? 2.7 + Math.sin(this.t / 240) * 0.13 : 0;
     }
   };
 
