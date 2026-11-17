@@ -649,6 +649,13 @@
           if (p.desk !== desk || p.mode !== 'work' || p.helpSpot !== helpSpot) {
             p.desk = desk;
             p.helpSpot = helpSpot;
+            // On initial load, let waiting agents visibly approach the human
+            // from their workstation instead of teleporting straight to help.
+            if (p.placeOnArrive && helpSpot) {
+              p.x = desk.seat.x;
+              p.y = desk.seat.y;
+              p.placeOnArrive = false;
+            }
             this.goTo(p, helpSpot || desk.seat);
           }
           p.mode = 'work';
