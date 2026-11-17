@@ -471,6 +471,8 @@ async function drawnLogos(target) {
       !!visitor.helpSpot && visitor.s.status === 'waiting' &&
       !office.people.has('human');
   }), true);
+  assert.equal(await labPage.evaluate(() => ['conveyor', 'drone', 'vent', 'banana-bot']
+    .every((type) => office.plan.props.some((p) => p.special === type))), true);
   await screenshot(labPage, 'minions-helper-2d');
   assert.equal(await humanLandmark(labPage), true);
   check('2D laboratory draws a separate human and routes waiting agents to it');
@@ -484,6 +486,19 @@ async function drawnLogos(target) {
       !office.people.has('human');
   }), true);
   assert.equal(await humanLandmark(labPage), true);
+  const ambient = await labPage.evaluate(() => ({
+    droneX: office.labFx?.drones[0]?.obj.position.x,
+    tanks: office.labFx?.tanks.length, consoles: office.labFx?.consoles.length,
+    bots: office.labFx?.bots.length, vents: office.labFx?.vents.length,
+    conveyors: office.labFx?.conveyors.length,
+  }));
+  assert.equal(ambient.tanks, 2);
+  assert.equal(ambient.consoles, 8);
+  assert.ok(ambient.bots && ambient.vents && ambient.conveyors);
+  await labPage.waitForFunction((firstX) => !!office.labFx?.drones.length &&
+    Math.abs(office.labFx.drones[0].obj.position.x - firstX) > 0.05,
+  ambient.droneX, { timeout: 5000 });
+  check('Minions 3D ambient machines and drones animate without session changes');
   await screenshot(labPage, 'minions-helper-3d');
   await labPage.evaluate((updated) => onData({ now: Date.now(), sessions: updated }),
     sessions.map((s) => s.key === 'codex:two' ? { ...s, status: 'typing' } : s));
