@@ -86,6 +86,60 @@
     drawLabProp(p) {
       const c = this.ctx;
       const P = (x, y, z = 0) => this.iso(x, y, z);
+      const t = this.t / 1000;
+      // All decorative machines animate without requiring any agent sessions.
+      if (p.special === 'conveyor') {
+        const w = p.w || 2.5, h = p.h || 0.75, d = p.d || 0.7;
+        this.box(p.x, p.y - d / 2, 0, w, d, h, '#6d8796', '#49667b', '#344d60');
+        this.box(p.x, p.y - d / 2, h, w, d, 0.07, '#344758', '#1f3448', '#152e3b');
+        for (let i = 0; i < 3; i++) {
+          const x = p.x + 0.25 + (t * 0.35 + i * 0.76) % (w - 0.35);
+          const q = P(x, p.y, h + 0.12);
+          c.strokeStyle = '#b58219'; c.lineWidth = 6; c.lineCap = 'round';
+          c.beginPath(); c.moveTo(q.x - 8, q.y); c.quadraticCurveTo(q.x, q.y + 10, q.x + 9, q.y - 2); c.stroke();
+          c.strokeStyle = '#ffe34b'; c.lineWidth = 4.5; c.stroke();
+        }
+        return;
+      }
+      if (p.special === 'drone') {
+        const x = p.x + Math.sin(t * 0.58) * (p.range || 1.5);
+        const q = P(x, p.y, (p.height || 1.75) + Math.sin(t * 1.9) * 0.12);
+        c.save(); c.translate(q.x, q.y);
+        c.fillStyle = '#7898aa'; this.roundRect(-13, -4, 26, 9, 4, '#7898aa');
+        c.fillStyle = '#55ebec'; c.beginPath(); c.arc(0, 2, 3.5, 0, Math.PI * 2); c.fill();
+        for (const side of [-1, 1]) {
+          c.strokeStyle = '#7f9baa'; c.lineWidth = 2;
+          c.beginPath(); c.moveTo(side * 11, -1); c.lineTo(side * 22, -6); c.stroke();
+          const wing = 6 + 5 * Math.abs(Math.sin(t * 22));
+          c.strokeStyle = '#d5f6f8'; c.lineWidth = 2;
+          c.beginPath(); c.moveTo(side * 22 - wing, -7); c.lineTo(side * 22 + wing, -7); c.stroke();
+        }
+        c.restore();
+        return;
+      }
+      if (p.special === 'vent') {
+        this.box(p.x - 0.25, p.y - 0.2, 0, 0.5, 0.4, 0.12, '#8fa7b3', '#617d8a', '#476272');
+        for (let i = 0; i < 5; i++) {
+          const age = (t * 0.4 + i * 0.19) % 1;
+          const q = P(p.x + Math.sin(t * 1.1 + i * 2.2) * 0.12, p.y, 0.17 + age * 1.4);
+          c.save(); c.globalAlpha = (1 - age) * 0.55;
+          c.fillStyle = '#ecfaff';
+          c.beginPath(); c.arc(q.x, q.y, 3 + age * 3, 0, Math.PI * 2); c.fill();
+          c.restore();
+        }
+        return;
+      }
+      if (p.special === 'banana-bot') {
+        const q = P(p.x + Math.sin(t * 0.46) * (p.range || 1), p.y + Math.cos(t * 0.46) * 0.18, 0);
+        c.save(); c.translate(q.x, q.y);
+        c.fillStyle = '#324c60';
+        for (const side of [-1, 1]) { c.beginPath(); c.arc(side * 8, 0, 3.5, 0, Math.PI * 2); c.fill(); }
+        c.strokeStyle = '#ffe343'; c.lineWidth = 8; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(-11, -14); c.quadraticCurveTo(2, 2, 12, -16); c.stroke();
+        c.fillStyle = '#d9f6fb'; c.beginPath(); c.arc(1, -10, 2.6, 0, Math.PI * 2); c.fill();
+        c.restore();
+        return;
+      }
       if (p.special === 'box') {
         this.box(p.x, p.y, 0, p.w, p.d, p.h, '#8fa6b2', p.color, '#456173');
         return;
@@ -95,9 +149,25 @@
         this.box(x - 0.53, y - 0.83, 0, 1.06, 0.47, 0.74, '#738f9d', '#486878', '#344f61');
         this.box(x - 0.38, y - 0.74, 0.74, 0.75, 0.13, 0.46, '#3e6575', '#263d50', '#1b3043');
         const screen = P(x, y - 0.65, 1.04);
-        c.fillStyle = '#3bd8dd'; c.fillRect(screen.x - 10, screen.y - 8, 21, 12);
-        c.fillStyle = '#b3fff4';
-        for (let i = 0; i < 3; i++) c.fillRect(screen.x - 7 + i * 6, screen.y - 5 + ((this.t / 350 + i * 2) % 4), 3, 2);
+        let status = null;
+        for (const actor of this.people.values()) {
+          if (actor.mode === 'work' && actor.desk && !actor.helpSpot &&
+              actor.desk.x === x && actor.desk.y === y) {
+            status = actor.s?.status; break;
+          }
+        }
+        const signal = { thinking: '#7e97f8', tool: '#ffbd55',
+          typing: '#4beaaf', waiting: '#ffe15e', error: '#ff766b' };
+        c.fillStyle = signal[status] || '#3bd8dd';
+        c.globalAlpha = 0.78 + Math.sin(t * (status ? 6 : 2) + x) * 0.18;
+        c.fillRect(screen.x - 10, screen.y - 8, 21, 12);
+        c.globalAlpha = 1;
+        c.fillStyle = '#e0ffff';
+        for (let i = 0; i < 3; i++) {
+          const amp = status ? 4 : 2;
+          c.fillRect(screen.x - 7 + i * 6, screen.y - 5 +
+            Math.sin(t * (status ? 9 : 2.1) + i * 1.7) * amp, 3, 2);
+        }
         const light = P(x, y - 0.35, 0.76);
         c.fillStyle = '#f2c83b'; c.fillRect(light.x - 6, light.y - 2, 12, 4);
         return;
@@ -128,6 +198,13 @@
         c.fillStyle = '#2e648d';
         c.beginPath(); c.moveTo(q.x - 12, q.y - 28); c.lineTo(q.x - 22, q.y - 5); c.lineTo(q.x - 8, q.y - 11); c.fill();
         c.beginPath(); c.moveTo(q.x + 12, q.y - 28); c.lineTo(q.x + 22, q.y - 5); c.lineTo(q.x + 8, q.y - 11); c.fill();
+        // Short, infrequent test firings keep the lab alive without noise.
+        if ((t + p.y * 0.2) % 13 < 1.25) {
+          const length = 12 + Math.sin(t * 22) * 4;
+          c.fillStyle = '#ff9c35';
+          c.beginPath(); c.moveTo(q.x - 7, q.y - 5);
+          c.lineTo(q.x, q.y + length); c.lineTo(q.x + 7, q.y - 5); c.fill();
+        }
         return;
       }
       if (p.special === 'banana') {
@@ -162,13 +239,19 @@
 
     person(p) {
       const c = this.ctx, t = this.t / 1000, st = this.stateOf(p);
+      if (p.minionLastStatus !== p.s.status) {
+        p.minionLastStatus = p.s.status;
+        if (p.s.status === 'done') p.minionCelebrateUntil = this.t + 2400;
+      }
       const walk = st.pose === 'walk';
+      const celebrating = !walk && p.s.status === 'done' && p.minionCelebrateUntil > this.t;
       const step = walk ? Math.sin(t * 12 + p.phase) : 0;
-      const bob = walk ? Math.abs(step) * 2 : 0;
+      const bob = walk ? Math.abs(step) * 2 :
+        celebrating ? Math.abs(Math.sin(t * 9)) * 3 : Math.sin(t * 1.8 + p.phase) * 1.1;
       const foot = this.iso(p.x, p.y);
       const b = this.iso(p.x, p.y, st.sitZ);
       const scale = p.s.subagent ? 0.8 : 1;
-      const wave = st.act === 'wave';
+      const wave = st.act === 'wave' || celebrating;
       const eyes = p.h % 3 === 0 ? 1 : 2;
       const sleepy = p.s.status === 'idle';
       c.save();
@@ -186,11 +269,14 @@
       c.fillRect(-10, -3 + step * 2, 9, 4); c.fillRect(2, -3 - step * 2, 9, 4);
       // Arms and black gloves; waiting agents wave.
       c.strokeStyle = YELLOW; c.lineWidth = 6; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(-9, -29); c.lineTo(-17, -17 + step * 3);
+      const scratch = !walk && p.s.status === 'thinking' && Math.sin(t * 0.8 + p.phase) > 0.82;
+      const leftX = celebrating ? -18 - Math.sin(t * 10) * 2 : -17;
+      const leftY = celebrating ? -43 : scratch ? -35 : -17 + step * 3;
+      c.beginPath(); c.moveTo(-9, -29); c.lineTo(leftX, leftY);
       c.moveTo(9, -29); c.lineTo(wave ? 17 + Math.sin(t * 9) * 2 : 17, wave ? -43 : -19);
       c.stroke();
       c.fillStyle = '#292d36';
-      c.beginPath(); c.arc(-17, -17 + step * 3, 4, 0, 2 * Math.PI);
+      c.beginPath(); c.arc(leftX, leftY, 4, 0, 2 * Math.PI);
       c.arc(wave ? 17 + Math.sin(t * 9) * 2 : 17, wave ? -43 : -19, 4, 0, 2 * Math.PI); c.fill();
       // Capsule body with denim overalls.
       this.roundRect(-12, -44, 24, 40, 11, YELLOW, '#d3ad20');
@@ -207,8 +293,9 @@
         const ex = eyes === 1 ? 0 : (i ? 5.7 : -5.7);
         c.fillStyle = '#9da8af'; c.beginPath(); c.arc(ex, -32, eyes === 1 ? 9 : 7.3, 0, 2 * Math.PI); c.fill();
         c.fillStyle = '#f8fbfd'; c.beginPath(); c.arc(ex, -32, eyes === 1 ? 6.8 : 5.4, 0, 2 * Math.PI); c.fill();
-        c.fillStyle = '#755034'; c.beginPath(); c.arc(ex + 0.8, -31, sleepy || Math.sin(t * 0.75 + p.phase) > 0.994 ? 1.5 : 3, 0, 2 * Math.PI); c.fill();
-        c.fillStyle = INK; c.beginPath(); c.arc(ex + 1, -31, 1.2, 0, 2 * Math.PI); c.fill();
+        const gaze = Math.sin(t * 0.7 + p.phase) * 1.25;
+        c.fillStyle = '#755034'; c.beginPath(); c.arc(ex + 0.8 + gaze, -31, sleepy || Math.sin(t * 0.75 + p.phase) > 0.994 ? 1.5 : 3, 0, 2 * Math.PI); c.fill();
+        c.fillStyle = INK; c.beginPath(); c.arc(ex + 1 + gaze, -31, 1.2, 0, 2 * Math.PI); c.fill();
       }
       c.strokeStyle = INK; c.lineWidth = 1.3;
       c.beginPath();
