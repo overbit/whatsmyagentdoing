@@ -106,6 +106,9 @@ test('shared 2D rendering gives the human a visible floor landmark and readable 
   const office = builtInOffice();
   const fills = [], labels = [];
   office.t = 1000;
+  office.cw = 800;
+  office.ch = 600;
+  office.inset = () => 0;
   office.ctx = new Proxy({ save() {}, restore() {}, fillText(s) { labels.push(s); },
     beginPath() {}, arc() {}, fill() {}, stroke() {} }, {
     get(target, name) { return name in target ? target[name] : () => {}; },
