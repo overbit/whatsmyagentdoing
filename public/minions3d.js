@@ -59,16 +59,18 @@ export function installMinions3D(Office3D, T) {
     // The goggle assembly and pupils move independently of the torso.
     const goggles = new Group();
     obj.add(goggles);
-    const pupils = [], irises = [];
+    const pupils = [], irises = [], blinkParts = [];
     tube(goggles, 0, tall ? 0.78 : 0.735, -0.01, 0.301, 0.065, dark);
     for (const x of oneEye ? [0] : [-0.135, 0.135]) {
       const z = 0.25;
       ball(goggles, x, tall ? 0.79 : 0.735, z, oneEye ? 0.179 : 0.145, steel, 1, 1, 0.51);
-      ball(goggles, x, tall ? 0.79 : 0.735, z + 0.080, oneEye ? 0.134 : 0.104, eyeWhite, 1, 1, 0.48);
+      const white = ball(goggles, x, tall ? 0.79 : 0.735, z + 0.080,
+        oneEye ? 0.134 : 0.104, eyeWhite, 1, 1, 0.48);
       const irisPart = ball(goggles, x + 0.027, tall ? 0.785 : 0.73, z + 0.133, 0.049, iris, 1, 1, 0.55);
       const pupil = ball(goggles, x + 0.036, tall ? 0.79 : 0.735, z + 0.157, 0.025, black, 1, 1, 0.5);
       irises.push({ obj: irisPart, restX: irisPart.position.x });
       pupils.push({ obj: pupil, restX: pupil.position.x });
+      blinkParts.push(white, irisPart, pupil);
     }
     ball(obj, 0, 0.557, 0.27, 0.058, dark, 1.13, 0.34, 0.27);
     for (const x of [-0.105, 0, 0.105]) {
@@ -86,7 +88,7 @@ export function installMinions3D(Office3D, T) {
       limbs[side < 0 ? 'leftArm' : 'rightArm'] = arm;
     }
     return { obj, limbs, features: { body, goggles, pupils: pupils.map((p) => p.obj),
-      eyes: [...irises, ...pupils], bodyScaleY: body.scale.y } };
+      eyes: [...irises, ...pupils], blinkParts, bodyScaleY: body.scale.y } };
   }
 
   // A permanent human supervisor. The scene renders it independently of the
@@ -314,6 +316,8 @@ export function installMinions3D(Office3D, T) {
       f.goggles.rotation.z = Math.sin(time * 0.85) * 0.028;
       const gaze = Math.sin(time * 0.68) * 0.028;
       for (const eye of f.eyes) eye.obj.position.x = eye.restX + gaze;
+      const eyelid = Math.sin(time * 1.15) > 0.996 ? 0.14 : 1;
+      for (const eye of f.blinkParts) eye.scale.y = eyelid;
       const swing = st.pose === 'walk' ? Math.sin(time * 10) * 0.48 : 0;
       a.limbs.leftLeg.rotation.x = swing;
       a.limbs.rightLeg.rotation.x = -swing;
