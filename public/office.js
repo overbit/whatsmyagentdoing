@@ -199,6 +199,101 @@
     }
   }
 
+  // Find a clear, reachable gathering area for the human in any floor plan.
+  // Downloadable scenes can contain separate islands or narrow walkways; the
+  // human belongs on the connected region that contains the most workstations.
+  function createHelper({ W, D, grid, desks = [], pois = [], door }) {
+    const { cw, ch, res: R, cost } = grid;
+    const groups = new Int32Array(cost.length).fill(-1);
+    const sizes = [];
+    for (let start = 0; start < cost.length; start++) {
+      if (cost[start] || groups[start] !== -1) continue;
+      const id = sizes.length, queue = [start];
+      groups[start] = id;
+      for (let k = 0; k < queue.length; k++) {
+        const n = queue[k], x = n % cw, y = (n / cw) | 0;
+        for (const next of [x ? n - 1 : -1, x + 1 < cw ? n + 1 : -1,
+          y ? n - cw : -1, y + 1 < ch ? n + cw : -1]) {
+          if (next < 0 || cost[next] || groups[next] !== -1) continue;
+          groups[next] = id;
+          queue.push(next);
+        }
+      }
+      sizes.push(queue.length);
+    }
+    if (!sizes.length) return null;
+
+    const regionAt = (x, y) => {
+      const i = Math.floor(x * R), j = Math.floor(y * R);
+      return i >= 0 && j >= 0 && i < cw && j < ch ? groups[j * cw + i] : -1;
+    };
+    const seats = desks.map((d) => d.seat || d);
+    const occupation = new Array(sizes.length).fill(0);
+    for (const seat of seats) {
+      let nearest = -1, best = Infinity;
+      const i0 = Math.floor(seat.x * R), j0 = Math.floor(seat.y * R);
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const i = i0 + dx, j = j0 + dy;
+        if (i < 0 || j < 0 || i >= cw || j >= ch) continue;
+        const region = groups[j * cw + i];
+        if (region < 0 || dx * dx + dy * dy >= best) continue;
+        nearest = region;
+        best = dx * dx + dy * dy;
+      }
+      if (nearest !== -1) occupation[nearest]++;
+    }
+    let region = 0;
+    for (let i = 1; i < sizes.length; i++) {
+      if (occupation[i] > occupation[region] ||
+        (occupation[i] === occupation[region] && sizes[i] > sizes[region])) region = i;
+    }
+    const clear = (x, y, r = 0.23) => [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]
+      .every(([dx, dy]) => regionAt(x + dx, y + dy) === region);
+    const closeTo = (points, x, y, distance) =>
+      points.some((p) => Math.hypot(p.x - x, p.y - y) < distance);
+    const candidates = [];
+    for (let j = 2; j < ch - 2; j += 2) for (let i = 2; i < cw - 2; i += 2) {
+      const x = (i + 0.5) / R, y = (j + 0.5) / R;
+      if (!clear(x, y) || closeTo(seats, x, y, 1.05) ||
+        closeTo(pois, x, y, 0.72) || (door && closeTo([door], x, y, 0.85))) continue;
+      candidates.push({ x, y });
+    }
+    // Very small scene packs may have no clear 1-tile gap; use the best open tile
+    // rather than making the character disappear entirely.
+    if (!candidates.length) {
+      for (let j = 1; j < ch - 1; j++) for (let i = 1; i < cw - 1; i++) {
+        const x = (i + 0.5) / R, y = (j + 0.5) / R;
+        if (clear(x, y, 0.1) && !closeTo(seats, x, y, 0.4)) candidates.push({ x, y });
+      }
+    }
+    if (!candidates.length) return null;
+
+    const focus = seats.length
+      ? { x: seats.reduce((n, p) => n + p.x, 0) / seats.length,
+        y: seats.reduce((n, p) => n + p.y, 0) / seats.length }
+      : { x: W / 2, y: D / 2 };
+    const spotsNear = (center) => candidates.filter((p) => {
+      const d = Math.hypot(p.x - center.x, p.y - center.y);
+      return d >= 0.8 && d <= 3.1 && clear(p.x, p.y, 0.15);
+    });
+    const rank = (p) => {
+      const closeSeats = seats.length ? Math.min(...seats.map((d) => Math.hypot(d.x - p.x, d.y - p.y))) : 3;
+      const neighbors = spotsNear(p).filter((q) => Math.hypot(q.x - p.x, q.y - p.y) < 2).length;
+      return Math.hypot(p.x - focus.x, p.y - focus.y) * 0.6 +
+        Math.abs(closeSeats - 2.7) * 0.3 - Math.min(12, neighbors) * 0.14;
+    };
+    candidates.sort((a, b) => rank(a) - rank(b));
+    const helper = candidates[0];
+    const spots = [];
+    for (const p of spotsNear(helper).sort((a, b) =>
+      Math.hypot(a.x - helper.x, a.y - helper.y) - Math.hypot(b.x - helper.x, b.y - helper.y))) {
+      if (spots.some((s) => Math.hypot(s.x - p.x, s.y - p.y) < 0.72)) continue;
+      spots.push(p);
+      if (spots.length >= Math.max(8, desks.length)) break;
+    }
+    return { ...helper, spots };
+  }
+
   // ---------------------------------------------------------------- office
 
   class Office {
@@ -463,7 +558,9 @@
         { y: 2.2, color: '#c96442', text: 'SHIP IT' },
         { y: 4.6, color: '#10a37f', text: 'TESTS ✓' },
       ];
-      return { W, D, OW, OD, MR, PY, RW, grid, items, props, pois, desks, windows, posters, pp, door: { x: 0.4, y: D - 1.2 } };
+      const door = { x: 0.4, y: D - 1.2 };
+      return { W, D, OW, OD, MR, PY, RW, grid, items, props, pois, desks, windows, posters, pp, door,
+        helper: createHelper({ W, D, grid, desks, pois, door }) };
     }
 
     glassX(add, x, y, d) {
@@ -1662,4 +1759,5 @@
   window.Office = Office;
   window.OFFICE_AGENT_BADGES = AGENT_BADGES;
   window.OfficeGrid = Grid;
+  window.OfficeHelper = createHelper;
 })();
