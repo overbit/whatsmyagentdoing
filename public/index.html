@@ -469,6 +469,7 @@
 <div class="ver" id="ver"></div>
 <script src="/i18n.js"></script>
 <script src="/office.js"></script>
+<script src="/minions2d.js"></script>
 <script src="/popout.js"></script>
 
 <script>
@@ -873,7 +874,8 @@ function syncControls() {
   document.querySelectorAll('#viewSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.view));
   document.querySelectorAll('#qualSeg button').forEach((b) => b.classList.toggle('on', b.dataset.v === state.quality));
   document.getElementById('qualSeg').style.display = view === 'office' ? '' : 'none';
-  document.getElementById('sceneMenu').hidden = view !== 'office' || state.quality !== 'high';
+  document.getElementById('sceneMenu').hidden = view !== 'office';
+  renderSceneSel();
   document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.classList.contains('on')));
   showSub.checked = state.showSub;
   showIdle.checked = state.showIdle;
@@ -955,16 +957,17 @@ function setLoading(on, text) {
 }
 async function makeOffice() {
   const high = state.quality === 'high';
-  const scene = high && state.scene !== 'office' && state.scenes.some((x) => x.id === state.scene) ? state.scene : 'office';
-  const kind = high ? `high:${scene}` : 'mid';
+  const scene = state.scene !== 'office' && state.scenes.some((x) => x.id === state.scene) ? state.scene : 'office';
+  const minions2d = !high && scene === 'minions';
+  const kind = high ? `high:${scene}` : minions2d ? 'mid:minions' : 'mid';
   if (kind === officeKind) return;
   officeKind = kind;
   setLoading(true, high ? L.loading3d : L.loading2d);
-  let Cls = window.Office;
+  let Cls = minions2d ? window.MinionsOffice : window.Office;
   const opts = { ...officeOpts, showAgent: state.showAgent };
-  if (high) {
+  if (high || minions2d) {
     try {
-      Cls = (await import('/office3d.js')).Office3D;
+      if (high) Cls = (await import('/office3d.js')).Office3D;
       if (scene !== 'office') {
         const m = await fetch(`/scenes/${scene}/manifest.json`).then((r) => r.json());
         opts.scene = { ...m, base: `/scenes/${scene}/` };
@@ -1010,15 +1013,17 @@ const DOWNLOAD = '<svg class="ui-ico" viewBox="0 0 24 24" aria-hidden="true"><pa
 function renderSceneSel() {
   const name = (x) => (x.name && (x.name[langCode] || x.name.en)) || x.id;
   const kb = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
-  const current = state.scenes.some((x) => x.id === state.scene) ? state.scene : 'office';
+  const selected = state.scenes.some((x) => x.id === state.scene) ? state.scene : 'office';
+  const current = state.quality === 'high' || selected === 'minions' ? selected : 'office';
   const btn = (v, label, title = '') =>
     `<button data-v="${esc(v)}" class="${v === current ? 'on' : ''}" aria-pressed="${v === current}"${title ? ` title="${esc(title)}"` : ''}>${label}</button>`;
   const card = (id, v, label, sub, title) => btn(v,
     `<span class="thumb">${SCENE_THUMBS.has(id) ? `<img src="/assets/scenes/${id}.jpg" alt="" loading="lazy">` : sceneIcon(id)}</span>` +
     `<span class="lbl">${label}</span>${sub ? `<small>${sub}</small>` : ''}${CHECK}`, title);
+  const selectable = (x) => state.quality === 'high' || x.id === 'minions';
   sceneSel.innerHTML = card('office', 'office', esc(L.office)) +
-    state.scenes.map((x) => card(x.id, x.id, esc(name(x)), '', x.credits || '')).join('') +
-    state.available.map((x) => card(x.id, `dl:${x.id}`, esc(name(x)), `${DOWNLOAD}${kb(x.size)}`, `${L.dl} ${kb(x.size)}`)).join('');
+    state.scenes.filter(selectable).map((x) => card(x.id, x.id, esc(name(x)), '', x.credits || '')).join('') +
+    state.available.filter(selectable).map((x) => card(x.id, `dl:${x.id}`, esc(name(x)), `${DOWNLOAD}${kb(x.size)}`, `${L.dl} ${kb(x.size)}`)).join('');
   const cur = current === 'office' ? L.office : name(state.scenes.find((x) => x.id === current) || { id: current });
   document.getElementById('sceneIco').innerHTML = sceneIcon(current);
   document.getElementById('sceneName').textContent = cur;
