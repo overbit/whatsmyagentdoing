@@ -47,7 +47,8 @@ test('built-in office generates a human helper and clear visitor places as it gr
     assert.ok(helper, 'the normal office has a human supervisor');
     assert.ok(helper.x > 0 && helper.y > 0 && helper.x < W && helper.y < D);
     assert.equal(grid.blocked(helper.x, helper.y), false);
-    assert.ok(helper.spots.length >= 4, 'visitors have nearby distinct positions');
+    assert.ok(helper.spots.length >= Math.min(8, office.plan.desks.length),
+      'the helper can handle a normal team without overlapping visitor spots');
     assert.equal(new Set(helper.spots.map((p) => `${p.x},${p.y}`)).size, helper.spots.length);
     assert.ok(helper.spots.every((p) => !grid.blocked(p.x, p.y)));
   }
