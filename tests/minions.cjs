@@ -54,6 +54,7 @@ test('2D and 3D scene integration keeps the base office and existing app theme',
   assert.match(threeD, /export function installMinions3D/);
   assert.match(source, /installMinions3D\(Office3D, THREE\)/);
   assert.match(bundle, /installMinions3D\(Cd,/);
+  assert.match(bundle, /helper:s\.helper/, 'shipped 3D bundle exposes the waiting-area configuration');
   assert.ok(pkg.files.includes('scenes'), 'npm distribution includes the bundled lab');
   assert.match(pkg.scripts.build, /--external:\/minions3d\.js/);
 });
