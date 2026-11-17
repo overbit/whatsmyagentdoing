@@ -347,6 +347,15 @@ export function installMinions3D(Office3D, T) {
       } else {
         a.limbs.leftArm.rotation.x = Math.sin(time * 0.72) * 0.12;
         a.limbs.rightArm.rotation.x = -Math.sin(time * 0.72) * 0.12;
+        if (status === 'idle' && !st.act && Math.sin(time * 0.58) > 0.93) {
+          for (const other of this.people.values()) {
+            if (other !== p && other.s?.status !== 'waiting' &&
+                Math.hypot(other.x - p.x, other.y - p.y) < 2.2) {
+              a.limbs.rightArm.rotation.z = 2.2 + Math.sin(time * 8) * 0.13;
+              break;
+            }
+          }
+        }
       }
     }
   };
