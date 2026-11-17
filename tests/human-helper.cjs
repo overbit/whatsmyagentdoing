@@ -87,30 +87,23 @@ test('waiting agents visit the human and return to their assigned desks in the n
 });
 
 
-test('a high-visibility help point has a clear stage and distinct visitor positions', () => {
+test('human help location is clear without a floor platform', () => {
   for (const n of [0, 8, 20]) {
     const office = builtInOffice(n);
     const { helper, grid } = office.plan;
-    assert.ok(helper.stageRadius >= 0.45, 'stage footprint is recorded for renderer parity');
-    assert.ok(helper.stageRadius <= 0.8);
+    assert.equal('stageRadius' in helper, false, 'no floor platform metadata');
     for (const [dx, dy] of [[0, 0], [0.32, 0], [-0.32, 0], [0, 0.32], [0, -0.32]]) {
       assert.equal(grid.blocked(helper.x + dx, helper.y + dy), false,
-        'highlight ring must avoid solid furniture');
-    }
-    for (let i = 0; i < 8; i++) {
-      const a = i * Math.PI / 4;
-      const x = helper.x + Math.cos(a) * helper.stageRadius * 1.08;
-      const y = helper.y + Math.sin(a) * helper.stageRadius * 1.08;
-      assert.equal(grid.blocked(x, y), false, 'entire visible platform avoids furniture');
+        'human stands away from solid furniture');
     }
     assert.ok(helper.spots.every((p) => Math.hypot(p.x - helper.x, p.y - helper.y) >= 0.8),
-      'queue spots remain outside the help pedestal');
+      'queue spots remain separated from the human');
   }
 });
 
-test('shared 2D rendering gives the human a visible floor landmark and readable screen badge', () => {
+test('shared 2D human retains overhead badge without circular floor aura', () => {
   const office = builtInOffice();
-  const fills = [], labels = [];
+  const labels = [];
   office.t = 1000;
   office.cw = 800;
   office.ch = 600;
@@ -120,10 +113,7 @@ test('shared 2D rendering gives the human a visible floor landmark and readable 
     get(target, name) { return name in target ? target[name] : () => {}; },
     set(target, name, value) { target[name] = value; return true; },
   });
-  office.poly = (_pts, fill) => fills.push(fill);
-  office.drawHelperPad();
-  assert.ok(fills.includes('#ffcf4a'), 'marker has a gold outer ring');
-  assert.ok(fills.includes('#34cbd5'), 'marker has a distinct cyan centre');
+  assert.equal(typeof office.drawHelperPad, 'undefined', 'no 2D floor aura renderer');
   office.roundRect = () => {};
   office.drawHelperBadge(140, 80, 0);
   assert.ok(labels.includes('HUMAN'));
@@ -133,15 +123,15 @@ test('shared 2D rendering gives the human a visible floor landmark and readable 
   assert.ok(labels.some((s) => /2.*WAITING/.test(s)), 'active input requests are readable');
 });
 
-test('3D has a scene-based illuminated help marker and persistent overlay badge', () => {
+test('3D keeps the help badge but no circular help station', () => {
   const mod = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8');
-  assert.match(mod, /function buildHelpStation/);
-  assert.match(mod, /this\.humanHelper\.station/);
+  assert.equal(mod.includes('function buildHelpStation'), false);
+  assert.equal(mod.includes('this.humanHelper.station'), false);
   assert.match(mod, /this\.drawHelperBadge/);
 });
 
 
-test('3D help platforms appear in regular and themed scenes and pulse for waiting sessions', () => {
+test('3D human stands directly on the scene floor and waves when needed', () => {
   const source = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8')
     .replace('export function installMinions3D', 'function installMinions3D');
   const vector = (x = 0, y = 0, z = 0) => ({
@@ -161,9 +151,6 @@ test('3D help platforms appear in regular and themed scenes and pulse for waitin
   }
   class Geometry { constructor(...args) { this.args = args; } }
   class Material { constructor(opts) { Object.assign(this, opts); } }
-  class PointLight extends Group {
-    constructor(_color, intensity) { super(); this.intensity = intensity; }
-  }
   class Fake3D {
     build() { this.room = new Group(); this.scene.add(this.room); }
     surfaceAt() { return 0.32; }
@@ -173,11 +160,11 @@ test('3D help platforms appear in regular and themed scenes and pulse for waitin
   }
   const T = { Group, Mesh, MeshStandardMaterial: Material, MeshBasicMaterial: Material,
     BoxGeometry: Geometry, CylinderGeometry: Geometry, SphereGeometry: Geometry,
-    ConeGeometry: Geometry, PointLight };
+    ConeGeometry: Geometry };
   new Function(source + '; return installMinions3D;')()(Fake3D, T);
   for (const scene of [null, { id: 'pirate' }, { id: 'minions' }]) {
     const office = Object.create(Fake3D.prototype);
-    office.plan = { scene, helper: { x: 5, y: 6, stageRadius: 0.75 } };
+    office.plan = { scene, helper: { x: 5, y: 6 } };
     office.scene = new Group();
     office.people = new Map();
     office.actors = new Map();
@@ -190,17 +177,19 @@ test('3D help platforms appear in regular and themed scenes and pulse for waitin
     office.helperWaiting = () => office.people.size;
     office.drawHelperBadge = (_x, _y, n) => { office.badgeWaiting = n; };
     office.build();
-    assert.ok(office.humanHelper?.station?.rim, 'helper has a visible 3D station');
-    assert.equal(office.room.children.length, 2, 'platform and human are added together');
-    assert.equal(office.humanHelper.station.obj.children[0].geometry.args[0], 0.81);
+    assert.ok(office.humanHelper?.obj, 'human remains visible');
+    assert.equal(office.room.children.length, 1, 'no extra floor platform');
+    assert.equal('station' in office.humanHelper, false);
+    assert.equal(office.humanHelper.obj.position.y, scene ? 0.32 : 0,
+      'human stands on the unmodified floor');
     office.people.set('agent', { helpSpot: { x: 5.8, y: 6 }, s: { status: 'waiting' } });
     office.syncActors(0.016);
-    assert.ok(office.humanHelper.station.light.intensity > 0.5, 'attention lights the marker');
+    assert.ok(office.humanHelper.arm.rotation.z > 0, 'human still signals for attention');
     office.draw();
     assert.equal(office.badgeWaiting, 1);
     office.people.clear();
     office.syncActors(0.016);
-    assert.equal(office.humanHelper.station.light.intensity, 0.25, 'idle returns to soft glow');
+    assert.equal(office.humanHelper.arm.rotation.z, 0, 'human stops waving when idle');
   }
 });
 
