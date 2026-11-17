@@ -102,6 +102,7 @@ test('the lab declares ambient machinery and drone, all inside its map', () => {
   for (const p of def.props) {
     assert.ok(p.x >= 0 && p.y >= 0 && p.x <= def.W && p.y <= def.D);
   }
+  assert.notEqual(def.fixedSky, true, 'laboratory responds to the shared day/night cycle');
 });
 
 test('3D machinery animates every frame without any live sessions', () => {
