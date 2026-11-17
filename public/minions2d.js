@@ -251,7 +251,18 @@
       const foot = this.iso(p.x, p.y);
       const b = this.iso(p.x, p.y, st.sitZ);
       const scale = p.s.subagent ? 0.8 : 1;
-      const wave = st.act === 'wave' || celebrating;
+      let greeting = false;
+      if (!walk && p.s.status === 'idle' && !st.act &&
+          Math.sin(t * 0.58 + p.phase) > 0.93) {
+        for (const other of this.people.values()) {
+          if (other !== p && other.s?.status !== 'waiting' &&
+              Math.hypot(other.x - p.x, other.y - p.y) < 2.2) {
+            greeting = true;
+            break;
+          }
+        }
+      }
+      const wave = st.act === 'wave' || celebrating || greeting;
       const eyes = p.h % 3 === 0 ? 1 : 2;
       const sleepy = p.s.status === 'idle';
       c.save();
