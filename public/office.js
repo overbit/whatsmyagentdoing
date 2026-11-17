@@ -288,8 +288,10 @@
     rated.sort((a, b) => a.score - b.score);
     const helper = rated[0].p;
     const spots = [];
-    for (const p of spotsNear(helper).sort((a, b) =>
-      Math.hypot(a.x - helper.x, a.y - helper.y) - Math.hypot(b.x - helper.x, b.y - helper.y))) {
+    // Fill the nearby ring first; if a very large team needs input, extend
+    // the queue across the same walkable region instead of stacking visitors.
+    const dist = (p) => Math.hypot(p.x - helper.x, p.y - helper.y);
+    for (const p of candidates.filter((p) => dist(p) >= 0.8).sort((a, b) => dist(a) - dist(b))) {
       if (spots.some((s) => Math.hypot(s.x - p.x, s.y - p.y) < 0.72)) continue;
       spots.push(p);
       if (spots.length >= Math.max(8, desks.length)) break;
