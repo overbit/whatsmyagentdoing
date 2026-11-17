@@ -42,7 +42,7 @@ export function installMinions3D(Office3D, T) {
     obj.scale.setScalar(scale);
 
     // Capsule-shaped body, denim overalls and their straps.
-    ball(obj, 0, 0.53, 0, 0.30, skin, 0.9, tall ? 1.52 : 1.25, 0.81);
+    const body = ball(obj, 0, 0.53, 0, 0.30, skin, 0.9, tall ? 1.52 : 1.25, 0.81);
     cube(obj, 0, 0.33, 0.035, 0.53, 0.29, 0.43, denim);
     cube(obj, 0, 0.42, 0.251, 0.30, 0.22, 0.045, denim);
     for (const x of [-0.205, 0.205]) {
@@ -56,14 +56,19 @@ export function installMinions3D(Office3D, T) {
       obj.add(leg);
     }
     cube(obj, 0, 0.355, 0.284, 0.17, 0.11, 0.026, dark);
-    // Goggles and elastic headband.
-    tube(obj, 0, tall ? 0.78 : 0.735, -0.01, 0.301, 0.065, dark);
+    // The goggle assembly and pupils move independently of the torso.
+    const goggles = new Group();
+    obj.add(goggles);
+    const pupils = [], irises = [];
+    tube(goggles, 0, tall ? 0.78 : 0.735, -0.01, 0.301, 0.065, dark);
     for (const x of oneEye ? [0] : [-0.135, 0.135]) {
       const z = 0.25;
-      ball(obj, x, tall ? 0.79 : 0.735, z, oneEye ? 0.179 : 0.145, steel, 1, 1, 0.51);
-      ball(obj, x, tall ? 0.79 : 0.735, z + 0.080, oneEye ? 0.134 : 0.104, eyeWhite, 1, 1, 0.48);
-      ball(obj, x + 0.027, tall ? 0.785 : 0.73, z + 0.133, 0.049, iris, 1, 1, 0.55);
-      ball(obj, x + 0.036, tall ? 0.79 : 0.735, z + 0.157, 0.025, black, 1, 1, 0.5);
+      ball(goggles, x, tall ? 0.79 : 0.735, z, oneEye ? 0.179 : 0.145, steel, 1, 1, 0.51);
+      ball(goggles, x, tall ? 0.79 : 0.735, z + 0.080, oneEye ? 0.134 : 0.104, eyeWhite, 1, 1, 0.48);
+      const irisPart = ball(goggles, x + 0.027, tall ? 0.785 : 0.73, z + 0.133, 0.049, iris, 1, 1, 0.55);
+      const pupil = ball(goggles, x + 0.036, tall ? 0.79 : 0.735, z + 0.157, 0.025, black, 1, 1, 0.5);
+      irises.push({ obj: irisPart, restX: irisPart.position.x });
+      pupils.push({ obj: pupil, restX: pupil.position.x });
     }
     ball(obj, 0, 0.557, 0.27, 0.058, dark, 1.13, 0.34, 0.27);
     for (const x of [-0.105, 0, 0.105]) {
@@ -80,7 +85,8 @@ export function installMinions3D(Office3D, T) {
       obj.add(arm);
       limbs[side < 0 ? 'leftArm' : 'rightArm'] = arm;
     }
-    return { obj, limbs };
+    return { obj, limbs, features: { body, goggles, pupils: pupils.map((p) => p.obj),
+      eyes: [...irises, ...pupils], bodyScaleY: body.scale.y } };
   }
 
   // A permanent human supervisor. The scene renders it independently of the
@@ -184,14 +190,16 @@ export function installMinions3D(Office3D, T) {
     if (!isLab(this)) return originalActor.call(this, p);
     const old = this.actors.get(p.key);
     if (old) return old;
-    const { obj, limbs } = minion(p);
+    const { obj, limbs, features } = minion(p);
     const prop = new Group();
     const cup = tube(prop, 0, 0, 0, 0.047, 0.12, glass);
     const book = cube(prop, 0, 0, 0, 0.22, 0.25, 0.03, denim);
     cup.visible = book.visible = false;
     this.scene.add(obj, prop);
     const a = { obj, limbs, mixer: { update() {} }, actions: {}, current: null,
-      head: null, armR: obj, prop, cup, book, yaw: 0, last: { x: p.x, y: p.y } };
+      head: null, armR: obj, prop, cup, book, features,
+      lastStatus: p.s?.status, celebrateUntil: 0,
+      yaw: 0, last: { x: p.x, y: p.y } };
     this.actors.set(p.key, a);
     return a;
   };
@@ -290,16 +298,48 @@ export function installMinions3D(Office3D, T) {
       const a = this.actors.get(p.key);
       if (!a?.limbs) continue;
       const st = this.stateOf(p);
-      const time = this.t / 1000 + p.phase;
+      const time = this.t / 1000 + (p.phase || 0);
+      const status = p.s?.status || 'idle';
+      if (status !== a.lastStatus) {
+        a.lastStatus = status;
+        if (status === 'done') a.celebrateUntil = this.t + 2400;
+      }
+      const celebrating = status === 'done' && a.celebrateUntil > this.t &&
+        st.pose !== 'walk';
+      const f = a.features;
+      // Breathing, slow goggle tilts, glances and occasional goggle adjustment
+      // keep even a single idle Minion lively without allocating new meshes.
+      f.body.scale.y = f.bodyScaleY * (1 + 0.018 * Math.sin(time * 2.2));
+      f.goggles.position.y = Math.sin(time * 1.25) * 0.012;
+      f.goggles.rotation.z = Math.sin(time * 0.85) * 0.028;
+      const gaze = Math.sin(time * 0.68) * 0.028;
+      for (const eye of f.eyes) eye.obj.position.x = eye.restX + gaze;
       const swing = st.pose === 'walk' ? Math.sin(time * 10) * 0.48 : 0;
       a.limbs.leftLeg.rotation.x = swing;
       a.limbs.rightLeg.rotation.x = -swing;
       a.limbs.leftArm.rotation.x = -swing * 0.75;
       a.limbs.rightArm.rotation.x = swing * 0.75;
-      a.limbs.rightArm.rotation.z = st.act === 'wave' ? 2.7 + Math.sin(time * 8) * 0.26 : -0.14;
-      if (st.act === 'type' || st.act === 'station') {
-        a.limbs.leftArm.rotation.x = -0.75 + Math.sin(time * 17) * 0.18;
-        a.limbs.rightArm.rotation.x = -0.75 - Math.sin(time * 17) * 0.18;
+      a.limbs.leftArm.rotation.z = 0.13;
+      a.limbs.rightArm.rotation.z = -0.13;
+      if (st.pose === 'walk') continue;
+      if (celebrating) {
+        a.limbs.leftArm.rotation.z = -2.3 + Math.sin(time * 11) * 0.15;
+        a.limbs.rightArm.rotation.z = 2.3 - Math.sin(time * 11) * 0.15;
+        f.goggles.position.y = 0.035 + Math.abs(Math.sin(time * 9)) * 0.03;
+      } else if (status === 'waiting' || st.act === 'wave') {
+        a.limbs.rightArm.rotation.z = 2.6 + Math.sin(time * 8) * 0.24;
+        a.limbs.leftArm.rotation.x = -0.22;
+      } else if (status === 'typing' || status === 'tool' || st.act === 'type') {
+        const speed = status === 'tool' ? 18 : 13;
+        a.limbs.leftArm.rotation.x = -0.8 + Math.sin(time * speed) * 0.25;
+        a.limbs.rightArm.rotation.x = -0.8 - Math.sin(time * speed) * 0.25;
+      } else if (status === 'thinking') {
+        a.limbs.leftArm.rotation.x = -0.38 + Math.sin(time * 1.6) * 0.22;
+        // Sometimes a thinking Minion scratches or readjusts its goggles.
+        if (Math.sin(time * 0.8) > 0.85) a.limbs.rightArm.rotation.z = 2.05;
+      } else {
+        a.limbs.leftArm.rotation.x = Math.sin(time * 0.72) * 0.12;
+        a.limbs.rightArm.rotation.x = -Math.sin(time * 0.72) * 0.12;
       }
     }
   };
