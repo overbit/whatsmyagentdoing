@@ -247,8 +247,11 @@
       if (occupation[i] > occupation[region] ||
         (occupation[i] === occupation[region] && sizes[i] > sizes[region])) region = i;
     }
-    const clear = (x, y, r = 0.23) => [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]
-      .every(([dx, dy]) => regionAt(x + dx, y + dy) === region);
+    const clear = (x, y, r = 0.23) =>
+      [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r],
+        [r * 0.7, r * 0.7], [r * 0.7, -r * 0.7],
+        [-r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7]]
+        .every(([dx, dy]) => regionAt(x + dx, y + dy) === region);
     const closeTo = (points, x, y, distance) =>
       points.some((p) => Math.hypot(p.x - x, p.y - y) < distance);
     const candidates = [];
@@ -279,8 +282,13 @@
     const rank = (p) => {
       const closeSeats = seats.length ? Math.min(...seats.map((d) => Math.hypot(d.x - p.x, d.y - p.y))) : 3;
       const neighbors = spotsNear(p).filter((q) => Math.hypot(q.x - p.x, q.y - p.y) < 2).length;
+      // A landmark needs open space, not a gap between desks. The foreground
+      // bias keeps it discoverable from the default isometric/3D camera.
+      const clearance = clear(p.x, p.y, 0.68) ? 0 : clear(p.x, p.y, 0.45) ? 1.5 : 4;
+      const foreground = (p.x / W + p.y / D) / 2;
       return Math.hypot(p.x - focus.x, p.y - focus.y) * 0.6 +
-        Math.abs(closeSeats - 2.7) * 0.3 - Math.min(12, neighbors) * 0.14;
+        Math.abs(closeSeats - 2.7) * 0.3 - Math.min(12, neighbors) * 0.14 +
+        clearance - foreground * 1.25;
     };
     // Compute scores once: sorting with full neighborhood scans per comparison
     // becomes costly when a large office expands to many desks.
@@ -296,7 +304,9 @@
       spots.push(p);
       if (spots.length >= Math.max(8, desks.length)) break;
     }
-    return { ...helper, spots };
+    const stageRadius = clear(helper.x, helper.y, 0.68) ? 0.75
+      : clear(helper.x, helper.y, 0.45) ? 0.55 : 0.45;
+    return { ...helper, spots, stageRadius };
   }
 
   // ---------------------------------------------------------------- office
