@@ -133,6 +133,10 @@ export function installMinions3D(Office3D, T) {
 
   const originalBuild = Office3D.prototype.build;
   Office3D.prototype.build = function () {
+    // Recreated with the map: no stale meshes or effects when scenes switch.
+    this.labFx = isLab(this)
+      ? { consoles: [], tanks: [], rockets: [], conveyors: [], drones: [], vents: [], bots: [] }
+      : null;
     originalBuild.call(this);
     this.humanHelper = null;
     if (!this.plan.helper) return;
@@ -229,16 +233,25 @@ export function installMinions3D(Office3D, T) {
       cube(g, 0, 0.37, -0.55, 1.1, 0.72, 0.54, mat('#607e91'));
       cube(g, 0, 0.78, -0.64, 0.92, 0.12, 0.68, steel);
       cube(g, 0, 1.08, -0.7, 0.8, 0.52, 0.12, dark);
-      cube(g, 0, 1.08, -0.625, 0.67, 0.38, 0.03, mintLight);
+      const screen = cube(g, 0, 1.08, -0.625, 0.67, 0.38, 0.03,
+        mat('#42d9c7', 0.34, 0.05, '#23c8d4'));
+      const leds = [];
       for (let i = 0; i < 4; i++) {
-        ball(g, -0.27 + i * 0.18, 0.81, -0.29, 0.035, i % 2 ? yellowLight : mintLight);
+        leds.push(ball(g, -0.27 + i * 0.18, 0.81, -0.29, 0.035,
+          mat(i % 2 ? '#f9cf49' : '#60f0e2', 0.5, 0, i % 2 ? '#f9cf49' : '#60f0e2')));
       }
+      this.labFx.consoles.push({ screen, leds, x: p.x, y: p.y, phase: p.x * 0.6, status: null });
     } else if (p.special === 'tank') {
-      tube(g, 0, (p.h || 1.6) / 2, 0, p.r || 0.5, p.h || 1.6, mat(p.liquid || '#82e59b', 0.22, 0.2, p.liquid || '#82e59b'));
-      tube(g, 0, 0.075, 0, (p.r || 0.5) + 0.09, 0.15, steel);
-      tube(g, 0, (p.h || 1.6) + 0.06, 0, (p.r || 0.5) + 0.09, 0.12, steel);
-      for (let i = 0; i < 5; i++) ball(g, Math.sin(i * 2.1) * 0.18,
-        0.3 + (i * 0.31) % (p.h - 0.3), Math.cos(i * 2.1) * 0.16, 0.055, glass);
+      const h = p.h || 1.6, radius = p.r || 0.5;
+      const liquid = tube(g, 0, h / 2, 0, radius, h, mat(p.liquid || '#82e59b', 0.22, 0.2, p.liquid || '#82e59b'));
+      tube(g, 0, 0.075, 0, radius + 0.09, 0.15, steel);
+      tube(g, 0, h + 0.06, 0, radius + 0.09, 0.12, steel);
+      const bubbles = [];
+      for (let i = 0; i < 5; i++) bubbles.push(ball(g,
+        Math.sin(i * 2.1) * radius * 0.32,
+        0.25 + (i * 0.29) % Math.max(0.45, h - 0.5),
+        Math.cos(i * 2.1) * radius * 0.3, 0.047 + i % 2 * 0.017, glass));
+      this.labFx.tanks.push({ bubbles, liquid, h, phase: p.x });
     } else if (p.special === 'rocket') {
       tube(g, 0, 1.05, 0, 0.43, 1.95, mat('#e4edf0', 0.35, 0.25));
       mesh(new ConeGeometry(0.43, 0.83, 20), yellowLight, g, 0, 2.45, 0);
@@ -246,6 +259,53 @@ export function installMinions3D(Office3D, T) {
       ball(g, 0, 1.46, 0.555, 0.155, mintLight);
       for (const side of [-1, 1]) cube(g, side * 0.47, 0.42, 0, 0.22, 0.8, 0.38, denim);
       tube(g, 0, 0.11, 0, 0.31, 0.2, dark);
+      const flame = mesh(new ConeGeometry(0.18, 0.34, 10), mat('#ffad35', 0.3, 0, '#ff9d27'), g, 0, 0.24, 0);
+      flame.visible = false;
+      this.labFx.rockets.push({ flame, phase: p.y * 0.2 });
+    } else if (p.special === 'conveyor') {
+      const w = p.w || 2.5, h = p.h || 0.75, d = p.d || 0.7;
+      cube(g, w / 2, h / 2, 0, w, h, d, mat('#58758a'));
+      cube(g, w / 2, h + 0.035, 0, w, 0.07, d + 0.06, dark);
+      const bananas = [];
+      for (let i = 0; i < 3; i++) {
+        const fruit = ball(g, 0.25 + i * 0.72, h + 0.17, 0, 0.18, yellowLight, 1.2, 0.46, 0.65);
+        bananas.push(fruit);
+      }
+      this.labFx.conveyors.push({ bananas, w, h });
+    } else if (p.special === 'drone') {
+      const drone = new Group();
+      g.add(drone);
+      drone.position.y = p.height || 1.75;
+      ball(drone, 0, 0, 0, 0.19, steel, 1.3, 0.6, 0.8);
+      ball(drone, 0, -0.04, 0.17, 0.055, mintLight);
+      const rotors = [];
+      for (const side of [-1, 1]) {
+        cube(drone, side * 0.35, 0, 0, 0.42, 0.05, 0.075, steel);
+        const rotor = new Group();
+        rotor.position.set(side * 0.56, 0.06, 0);
+        cube(rotor, 0, 0, 0, 0.48, 0.017, 0.055, glass);
+        cube(rotor, 0, 0, 0, 0.055, 0.017, 0.48, glass);
+        drone.add(rotor);
+        rotors.push(rotor);
+      }
+      this.labFx.drones.push({ obj: drone, rotors, height: p.height || 1.75, range: p.range || 1.5 });
+    } else if (p.special === 'vent') {
+      cube(g, 0, 0.075, 0, 0.48, 0.15, 0.4, steel);
+      const steam = [];
+      for (let i = 0; i < 5; i++) {
+        const cloud = ball(g, 0, 0.35, 0, 0.085 + i * 0.012,
+          new MeshBasicMaterial({ color: '#d6f6ff', transparent: true, opacity: 0.32, depthWrite: false }));
+        cloud.castShadow = false;
+        steam.push(cloud);
+      }
+      this.labFx.vents.push({ steam });
+    } else if (p.special === 'banana-bot') {
+      const robot = new Group();
+      g.add(robot);
+      ball(robot, 0, 0.25, 0, 0.22, yellowLight, 1.25, 0.7, 0.8);
+      ball(robot, 0, 0.29, 0.19, 0.07, glass);
+      for (const side of [-1, 1]) tube(robot, side * 0.16, 0.09, 0, 0.07, 0.13, boots);
+      this.labFx.bots.push({ obj: robot, range: p.range || 1 });
     } else if (p.special === 'banana') {
       const b = ball(g, 0, 0.78, 0, 0.36, yellowLight, 1.0, 0.28, 0.45);
       b.rotation.z = -0.35;
