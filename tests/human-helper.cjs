@@ -86,6 +86,19 @@ test('waiting agents visit the human and return to their assigned desks in the n
   assert.deepEqual({...a.path.at(-1)}, {...deskA.seat});
 });
 
+test('a session already waiting when the dashboard opens visibly walks to the human', () => {
+  const office = builtInOffice(4);
+  office.first = true;
+  office.update([agent('codex:on-load', 'waiting')]);
+  const person = office.people.get('codex:on-load');
+  assert.ok(person.helpSpot);
+  assert.equal(person.placeOnArrive, false);
+  assert.deepEqual({ x: person.x, y: person.y }, { ...person.desk.seat },
+    'initial position stays at the assigned workstation');
+  assert.deepEqual({ ...person.path.at(-1) }, { ...person.helpSpot },
+    'initial waiting state plans a walk to the human');
+});
+
 test('2D and 3D renderers draw the same human and default scenes share helper wiring', () => {
   const twod = fs.readFileSync(path.join(root, 'public/minions2d.js'), 'utf8');
   const threed = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8');
