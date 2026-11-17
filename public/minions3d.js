@@ -207,11 +207,11 @@ export function installMinions3D(Office3D, T) {
   // Ambient motion is driven by the render clock, not session updates.
   // All meshes are created once per scene; this only changes their transforms
   // or existing materials, so idle maps stay lively without frame allocations.
+  const consoleHues = { thinking: '#768df7', tool: '#ffbd55', typing: '#47e9b0',
+    waiting: '#ffd55b', error: '#ff7166' };
   function animateLab(office, time) {
     const fx = office.labFx;
     if (!fx) return;
-    const hues = { thinking: '#768df7', tool: '#ffbd55', typing: '#47e9b0',
-      waiting: '#ffd55b', error: '#ff7166' };
     for (const c of fx.consoles) {
       let status = null;
       for (const person of office.people.values()) {
@@ -223,8 +223,8 @@ export function installMinions3D(Office3D, T) {
       }
       if (status !== c.status) {
         c.status = status;
-        c.screen.material.emissive.set(hues[status] || '#23c8d4');
-        c.screen.material.color.set(hues[status] || '#42d9c7');
+        c.screen.material.emissive.set(consoleHues[status] || '#23c8d4');
+        c.screen.material.color.set(consoleHues[status] || '#42d9c7');
       }
       const speed = status === 'tool' || status === 'typing' ? 12 : status ? 5 : 1.8;
       c.screen.material.emissiveIntensity = (status ? 0.8 : 0.35) +
