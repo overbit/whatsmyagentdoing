@@ -274,7 +274,7 @@
       : { x: W / 2, y: D / 2 };
     const spotsNear = (center) => candidates.filter((p) => {
       const d = Math.hypot(p.x - center.x, p.y - center.y);
-      return d >= 0.8 && d <= 3.1 && clear(p.x, p.y, 0.15);
+      return d >= 0.8 && d <= 3.1;
     });
     const rank = (p) => {
       const closeSeats = seats.length ? Math.min(...seats.map((d) => Math.hypot(d.x - p.x, d.y - p.y))) : 3;
@@ -282,8 +282,11 @@
       return Math.hypot(p.x - focus.x, p.y - focus.y) * 0.6 +
         Math.abs(closeSeats - 2.7) * 0.3 - Math.min(12, neighbors) * 0.14;
     };
-    candidates.sort((a, b) => rank(a) - rank(b));
-    const helper = candidates[0];
+    // Compute scores once: sorting with full neighborhood scans per comparison
+    // becomes costly when a large office expands to many desks.
+    const rated = candidates.map((p) => ({ p, score: rank(p) }));
+    rated.sort((a, b) => a.score - b.score);
+    const helper = rated[0].p;
     const spots = [];
     for (const p of spotsNear(helper).sort((a, b) =>
       Math.hypot(a.x - helper.x, a.y - helper.y) - Math.hypot(b.x - helper.x, b.y - helper.y))) {
