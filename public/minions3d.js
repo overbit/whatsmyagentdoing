@@ -196,6 +196,85 @@ export function installMinions3D(Office3D, T) {
     return a;
   };
 
+  // Ambient motion is driven by the render clock, not session updates.
+  // All meshes are created once per scene; this only changes their transforms
+  // or existing materials, so idle maps stay lively without frame allocations.
+  function animateLab(office, time) {
+    const fx = office.labFx;
+    if (!fx) return;
+    const hues = { thinking: '#768df7', tool: '#ffbd55', typing: '#47e9b0',
+      waiting: '#ffd55b', error: '#ff7166' };
+    for (const c of fx.consoles) {
+      let status = null;
+      for (const person of office.people.values()) {
+        if (person.mode === 'work' && person.desk && !person.helpSpot &&
+            person.desk.x === c.x && person.desk.y === c.y) {
+          status = person.s?.status || null;
+          break;
+        }
+      }
+      if (status !== c.status) {
+        c.status = status;
+        c.screen.material.emissive.set(hues[status] || '#23c8d4');
+        c.screen.material.color.set(hues[status] || '#42d9c7');
+      }
+      const speed = status === 'tool' || status === 'typing' ? 12 : status ? 5 : 1.8;
+      c.screen.material.emissiveIntensity = (status ? 0.8 : 0.35) +
+        Math.sin(time * speed + c.phase) * (status ? 0.33 : 0.1);
+      for (let i = 0; i < c.leds.length; i++) {
+        c.leds[i].material.emissiveIntensity =
+          Math.sin(time * speed + c.phase + i * 1.4) > 0.1 ? 1.35 : 0.12;
+      }
+    }
+    for (const tank of fx.tanks) {
+      const travel = Math.max(0.45, tank.h - 0.5);
+      for (let i = 0; i < tank.bubbles.length; i++) {
+        const bubble = tank.bubbles[i];
+        const age = time * (0.3 + i * 0.045) + i * 0.31 + tank.phase * 0.12;
+        bubble.position.y = 0.25 + age % travel;
+        bubble.position.x = Math.sin(time * 1.6 + i * 1.7) * 0.08;
+      }
+      tank.liquid.material.emissiveIntensity = 0.43 + Math.sin(time * 1.3 + tank.phase) * 0.18;
+    }
+    for (const rocket of fx.rockets) {
+      const cycle = (time + rocket.phase) % 13;
+      rocket.flame.visible = cycle < 1.25;
+      if (rocket.flame.visible) {
+        rocket.flame.scale.y = 0.7 + Math.sin(time * 22) * 0.23;
+        rocket.flame.material.emissiveIntensity = 0.75 + Math.sin(time * 18) * 0.22;
+      }
+    }
+    for (const conveyor of fx.conveyors) {
+      for (let i = 0; i < conveyor.bananas.length; i++) {
+        const banana = conveyor.bananas[i];
+        banana.position.x = 0.25 + (time * 0.35 + i * 0.76) % (conveyor.w - 0.35);
+        banana.rotation.z = Math.sin(time * 2 + i) * 0.13;
+      }
+    }
+    for (const drone of fx.drones) {
+      drone.obj.position.x = Math.sin(time * 0.58) * drone.range;
+      drone.obj.position.y = drone.height + Math.sin(time * 1.9) * 0.12;
+      drone.obj.rotation.z = Math.sin(time * 0.58) * 0.12;
+      for (let i = 0; i < drone.rotors.length; i++) {
+        drone.rotors[i].rotation.y = time * (i ? -22 : 22);
+      }
+    }
+    for (const vent of fx.vents) {
+      for (let i = 0; i < vent.steam.length; i++) {
+        const wisp = vent.steam[i];
+        const age = (time * 0.4 + i * 0.19) % 1;
+        wisp.position.y = 0.19 + age * 1.4;
+        wisp.position.x = Math.sin(time * 1.1 + i * 2.2) * 0.12;
+        wisp.material.opacity = (1 - age) * 0.4;
+      }
+    }
+    for (const bot of fx.bots) {
+      bot.obj.position.x = Math.sin(time * 0.46) * bot.range;
+      bot.obj.position.z = Math.cos(time * 0.46) * 0.18;
+      bot.obj.rotation.y = Math.sin(time * 0.46) > 0 ? Math.PI / 4 : -Math.PI / 4;
+    }
+  }
+
   const originalSync = Office3D.prototype.syncActors;
   Office3D.prototype.syncActors = function (dt) {
     originalSync.call(this, dt);
@@ -206,6 +285,7 @@ export function installMinions3D(Office3D, T) {
       this.humanHelper.arm.rotation.z = waiting ? 2.7 + Math.sin(this.t / 240) * 0.13 : 0;
     }
     if (!isLab(this)) return;
+    animateLab(this, this.t / 1000);
     for (const p of this.people.values()) {
       const a = this.actors.get(p.key);
       if (!a?.limbs) continue;
