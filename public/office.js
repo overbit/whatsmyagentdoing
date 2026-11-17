@@ -944,6 +944,85 @@
       this.poly([P(0.05, dy - 0.6), P(0.9, dy - 0.6), P(0.9, dy + 0.6), P(0.05, dy + 0.6)], pal.dark ? '#5a3b2e' : '#b9654a');
     }
 
+    // The one human operator is always on duty in the lab. It is deliberately
+    // taller and dressed in a white coat so it cannot be mistaken for an agent.
+    drawHuman() {
+      const { x, y } = this.plan.helper;
+      const c = this.ctx;
+      const foot = this.iso(x, y);
+      const visitors = [...this.people.values()].filter(
+        (p) => p.helpSpot && p.s.status === 'waiting',
+      ).length;
+      const wave = visitors ? Math.sin(this.t / 240) * 4 : 0;
+      c.save();
+      c.translate(foot.x, foot.y);
+      c.fillStyle = 'rgba(16,32,47,.27)';
+      c.beginPath(); c.ellipse(0, 1, 14, 5, 0, 0, 2 * Math.PI); c.fill();
+
+      // Shoes, trousers and white laboratory coat.
+      c.fillStyle = '#253747';
+      c.fillRect(-8, -17, 6, 17);
+      c.fillRect(2, -17, 6, 17);
+      c.fillStyle = '#151e2b';
+      c.fillRect(-10, -3, 9, 4);
+      c.fillRect(2, -3, 9, 4);
+      c.fillStyle = '#dfe9ed';
+      c.beginPath();
+      c.moveTo(-13, -51); c.lineTo(13, -51); c.lineTo(15, -14);
+      c.lineTo(1, -12); c.lineTo(-15, -14); c.closePath(); c.fill();
+      c.strokeStyle = '#a7bdc9'; c.lineWidth = 1.1;
+      c.beginPath(); c.moveTo(0, -48); c.lineTo(0, -14); c.stroke();
+      c.fillStyle = '#f6fbfc';
+      c.beginPath(); c.moveTo(-7, -49); c.lineTo(0, -39); c.lineTo(-1, -33);
+      c.lineTo(-11, -47); c.fill();
+      c.beginPath(); c.moveTo(7, -49); c.lineTo(0, -39); c.lineTo(1, -33);
+      c.lineTo(11, -47); c.fill();
+      c.fillStyle = '#328ab8'; c.fillRect(4, -35, 7, 5);
+      c.fillStyle = '#f9d943'; c.fillRect(5, -34, 3, 1.5);
+
+      // One hand waves when the human has outstanding approvals.
+      c.strokeStyle = '#edf5f7'; c.lineWidth = 8; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(-11, -46); c.lineTo(-16, -27);
+      c.moveTo(11, -46); c.lineTo(17, visitors ? -61 + wave : -28); c.stroke();
+      c.fillStyle = '#e2ab86';
+      for (const [hx, hy] of [[-16, -26], [17, visitors ? -61 + wave : -27]]) {
+        c.beginPath(); c.arc(hx, hy, 4, 0, 2 * Math.PI); c.fill();
+      }
+
+      // Human face, brown hair and round glasses.
+      c.fillStyle = '#e6b18b';
+      c.fillRect(-4, -55, 8, 9);
+      c.beginPath(); c.ellipse(0, -68, 11, 14, 0, 0, 2 * Math.PI); c.fill();
+      c.fillStyle = '#45302c';
+      c.beginPath(); c.ellipse(0, -79, 11, 5.6, 0, 0, Math.PI * 2); c.fill();
+      c.fillRect(-11, -76, 3.3, 12);
+      c.fillRect(8, -77, 3.3, 11);
+      c.strokeStyle = '#344c5c'; c.lineWidth = 2;
+      c.beginPath(); c.arc(-5.2, -68, 4.5, 0, Math.PI * 2);
+      c.arc(5.2, -68, 4.5, 0, Math.PI * 2);
+      c.moveTo(-0.7, -68); c.lineTo(0.7, -68); c.stroke();
+      c.fillStyle = '#253747';
+      c.beginPath(); c.arc(-5, -68, 1.3, 0, Math.PI * 2);
+      c.arc(5, -68, 1.3, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#905e47'; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(0, -61, 3, 0.12 * Math.PI, 0.88 * Math.PI); c.stroke();
+
+      // Local scene marker, not a toolbar or dashboard-theme change.
+      this.roundRect(-24, -104, 48, 15, 7, '#203a4b');
+      c.font = '800 9px ui-sans-serif, system-ui, sans-serif';
+      c.fillStyle = '#fff4ca';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillText('HUMAN', 0, -96.5);
+      if (visitors) {
+        this.roundRect(18, -91, 18, 19, 7, '#ffdc42');
+        c.fillStyle = '#223b4a';
+        c.font = '900 14px ui-sans-serif, system-ui, sans-serif';
+        c.fillText('?', 27, -81);
+      }
+      c.restore();
+    }
+
+
     // ------------------------------------------------------------ furniture
 
     plant(x, y) {
@@ -1709,6 +1788,10 @@
         else if (p.napDesk) occupant.set(p.napDesk, p);
       }
       const items = [...this.plan.items];
+      if (this.plan.helper) {
+        const { x, y } = this.plan.helper;
+        items.push({ depth: x + y + 0.01, draw: () => this.drawHuman() });
+      }
       for (const dk of this.plan.desks) {
         const p = occupant.get(dk);
         items.push({ depth: dk.x + 0.7 + dk.y + 0.4, draw: () => this.desk(dk, p) });
