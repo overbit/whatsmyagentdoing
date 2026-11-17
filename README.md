@@ -40,6 +40,8 @@ It opens an isometric **office**. Agents that are working sit at cubicle desks: 
 
 Two looks: **Medium** is a hand-drawn 2D canvas (zero dependencies). **High (3D)** renders the same office with real-time lighting and shadows using [Kenney](https://kenney.nl)'s CC0 *Mini Characters* (with their walk / sit / interact animations) and *Furniture Kit*; drag to rotate, scroll to zoom. The 3D bundle (three.js, ~180 KB gzipped) and models (~1.3 MB, meshopt-compressed) only load when you pick High.
 
+**Minions Lab (2D + 3D):** the scene selector also includes an offline, bundled Minions-inspired laboratory. Pick **Minions Lab** and switch between Medium and High to explore the same banana-powered research facility with goggled yellow characters, blue overalls, lab consoles, bubbling tanks, a rocket and a banana robot. The scene is optional and the existing dashboard colors, navigation and other scenes remain unchanged. You can launch it directly with `?view=office&quality=high&scene=minions` (or `quality=mid` for 2D), or use `--scene minions`. All new artwork is original procedural fan art; no film assets are bundled.
+
 **Scenes (3D):** the office is built in; other scenes are small downloadable packs (Christmas Cabin, Neon Arcade, Haunted Hollow, Pirate Cove, Café, Space Station and Castle are about 100–290 KB each), fetched only when you pick one from the scene menu next to 2D/3D, run `--scene pirate`, or ask your agent for it. Packs are data only (a manifest plus Kenney CC0 models) and are checked against a pinned SHA-256 before they're installed into `~/.whatsmyagentdoing/scenes`.
 
 Each session updates in real time:
