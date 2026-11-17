@@ -270,14 +270,21 @@
       // Arms and black gloves; waiting agents wave.
       c.strokeStyle = YELLOW; c.lineWidth = 6; c.lineCap = 'round';
       const scratch = !walk && p.s.status === 'thinking' && Math.sin(t * 0.8 + p.phase) > 0.82;
+      const busy = !walk && (p.s.status === 'typing' || p.s.status === 'tool');
+      const read = !walk && st.act === 'read';
+      const holding = !walk && (st.act === 'coffee' || st.act === 'water');
+      const tap = Math.sin(t * (p.s.status === 'tool' ? 18 : 13) + p.phase) * 4;
       const leftX = celebrating ? -18 - Math.sin(t * 10) * 2 : -17;
-      const leftY = celebrating ? -43 : scratch ? -35 : -17 + step * 3;
+      const leftY = celebrating ? -43 : scratch || read ? -35 :
+        busy ? -28 + tap : -17 + step * 3;
+      const rightX = wave ? 17 + Math.sin(t * 9) * 2 : 17;
+      const rightY = wave ? -43 : busy ? -28 - tap : read || holding ? -35 : -19;
       c.beginPath(); c.moveTo(-9, -29); c.lineTo(leftX, leftY);
-      c.moveTo(9, -29); c.lineTo(wave ? 17 + Math.sin(t * 9) * 2 : 17, wave ? -43 : -19);
+      c.moveTo(9, -29); c.lineTo(rightX, rightY);
       c.stroke();
       c.fillStyle = '#292d36';
       c.beginPath(); c.arc(leftX, leftY, 4, 0, 2 * Math.PI);
-      c.arc(wave ? 17 + Math.sin(t * 9) * 2 : 17, wave ? -43 : -19, 4, 0, 2 * Math.PI); c.fill();
+      c.arc(rightX, rightY, 4, 0, 2 * Math.PI); c.fill();
       // Capsule body with denim overalls.
       this.roundRect(-12, -44, 24, 40, 11, YELLOW, '#d3ad20');
       this.roundRect(-12, -17, 24, 14, 3, BLUE);
