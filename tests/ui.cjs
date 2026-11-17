@@ -46,6 +46,20 @@ async function backToList(t){await t.click('#sideBack');await t.waitForFunction(
 async function resumeOf(t,key){await openAgent(t,key);const b=t.locator('#detailBody .copy');const v=(await b.count())?await b.getAttribute('data-copy'):null;await backToList(t);return v}
 // The agent filter lives in a toolbar menu.
 async function filterAgent(t,v){if(!(await t.evaluate(()=>document.getElementById('agentMenu').open)))await t.click('#agentMenu > summary');await t.click(`#agentChips [data-v="${v}"]`);await t.keyboard.press('Escape')}
+async function humanLandmark(target, active = true) {
+  return target.evaluate((expectsAttention) => {
+    const words = [];
+    const ctx = office.ctx;
+    const original = ctx.fillText;
+    ctx.fillText = function (value, ...args) {
+      words.push(String(value));
+      return original.call(this, value, ...args);
+    };
+    try { office.frame(performance.now()); } finally { ctx.fillText = original; }
+    return words.includes('HUMAN') &&
+      words.some((word) => expectsAttention ? /WAITING$/.test(word) : word === 'HELP STATION');
+  }, active);
+}
 async function drawnLogos(target) {
  await target.waitForFunction(()=>Object.values(OFFICE_AGENT_BADGES).every(b=>b.image.complete&&b.image.naturalWidth>0));
  return target.evaluate(()=>{
@@ -89,6 +103,7 @@ async function drawnLogos(target) {
     return !!office.plan.helper && !!p.helpSpot &&
       typeof office.drawHuman === 'function' && !office.people.has('human');
   }), true, 'normal 2D office includes a separate human and waiting-session visitor');
+  assert.equal(await humanLandmark(page), true, '2D badge names the human and shows attention');
   check('regular 2D office includes human and a waiting visitor');
   assert.equal(await page.locator('#fullBtn').count(),0,'there is no way back to the old layout');
   assert.equal(await page.locator('h1 [data-t]').innerText(),"What's my agent doing");
@@ -185,6 +200,7 @@ async function drawnLogos(target) {
     const p = office.people.get('codex:two');
     return !!office.humanHelper?.obj && !!office.plan.helper && !!p.helpSpot;
   }), true, 'normal 3D office includes human and waiting visitor');
+  assert.equal(await humanLandmark(page), true, '3D human badge stays screen-readable');
   check('regular 3D office includes human and a waiting visitor');
   await screenshot(page, 'office-3d');
   assert.deepEqual(await drawnLogos(page),['claude','codex','gemini','omp']);
@@ -456,6 +472,7 @@ async function drawnLogos(target) {
       !office.people.has('human');
   }), true);
   await screenshot(labPage, 'minions-helper-2d');
+  assert.equal(await humanLandmark(labPage), true);
   check('2D laboratory draws a separate human and routes waiting agents to it');
 
   await labPage.click('#qualSeg [data-v=high]');
@@ -466,6 +483,7 @@ async function drawnLogos(target) {
     return !!office.humanHelper.obj && !!visitor.helpSpot &&
       !office.people.has('human');
   }), true);
+  assert.equal(await humanLandmark(labPage), true);
   await screenshot(labPage, 'minions-helper-3d');
   await labPage.evaluate((updated) => onData({ now: Date.now(), sessions: updated }),
     sessions.map((s) => s.key === 'codex:two' ? { ...s, status: 'typing' } : s));
@@ -476,6 +494,8 @@ async function drawnLogos(target) {
       Math.abs(goal.x - p.desk.seat.x) < 0.01 &&
       Math.abs(goal.y - p.desk.seat.y) < 0.01;
   }), true);
+  assert.equal(await humanLandmark(labPage, false), true,
+    'human marker remains visible when nobody is waiting');
   check('3D laboratory human stays visible while resumed agents return to work');
   // Exercise a scene without an explicit helper entry, like downloadable packs.
   // Intercept the pack manifest so this test remains self-contained/offline.
@@ -506,6 +526,7 @@ async function drawnLogos(target) {
       !!p.helpSpot && !office.people.has('human');
   }), true);
   await screenshot(labPage, 'human-helper-external-scene');
+  assert.equal(await humanLandmark(labPage), true);
   check('downloadable 3D map without explicit helper has a reachable human and visitor');
   await labPage.close();
 
