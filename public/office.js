@@ -274,7 +274,7 @@
       : { x: W / 2, y: D / 2 };
     const spotsNear = (center) => candidates.filter((p) => {
       const d = Math.hypot(p.x - center.x, p.y - center.y);
-      return d >= 0.8 && d <= 3.1;
+      return d >= 0.8 && d <= 4.7;
     });
     const rank = (p) => {
       const closeSeats = seats.length ? Math.min(...seats.map((d) => Math.hypot(d.x - p.x, d.y - p.y))) : 3;
