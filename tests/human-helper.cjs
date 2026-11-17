@@ -134,6 +134,70 @@ test('3D has a scene-based illuminated help marker and persistent overlay badge'
   assert.match(mod, /this\.drawHelperBadge/);
 });
 
+
+test('3D help platforms appear in regular and themed scenes and pulse for waiting sessions', () => {
+  const source = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8')
+    .replace('export function installMinions3D', 'function installMinions3D');
+  const vector = (x = 0, y = 0, z = 0) => ({
+    x, y, z,
+    set(a, b, c) { this.x = a; this.y = b; this.z = c; return this; },
+    setScalar(n) { this.x = this.y = this.z = n; return this; },
+    clone() { return vector(this.x, this.y, this.z); },
+    project() { this.x /= 20; this.y /= 20; this.z = 0.2; return this; },
+  });
+  class Group {
+    constructor() { this.children = []; this.position = vector(); this.scale = vector(1, 1, 1);
+      this.rotation = { x: 0, y: 0, z: 0 }; }
+    add(...objects) { this.children.push(...objects); }
+  }
+  class Mesh extends Group {
+    constructor(geometry, material) { super(); this.geometry = geometry; this.material = material; }
+  }
+  class Geometry { constructor(...args) { this.args = args; } }
+  class Material { constructor(opts) { Object.assign(this, opts); } }
+  class PointLight extends Group {
+    constructor(_color, intensity) { super(); this.intensity = intensity; }
+  }
+  class Fake3D {
+    build() { this.room = new Group(); this.scene.add(this.room); }
+    surfaceAt() { return 0.32; }
+    facing() { return 0; }
+    draw() { return 'drawn'; }
+    syncActors() {}
+  }
+  const T = { Group, Mesh, MeshStandardMaterial: Material, MeshBasicMaterial: Material,
+    BoxGeometry: Geometry, CylinderGeometry: Geometry, SphereGeometry: Geometry,
+    ConeGeometry: Geometry, PointLight };
+  new Function(source + '; return installMinions3D;')()(Fake3D, T);
+  for (const scene of [null, { id: 'pirate' }, { id: 'minions' }]) {
+    const office = Object.create(Fake3D.prototype);
+    office.plan = { scene, helper: { x: 5, y: 6, stageRadius: 0.75 } };
+    office.scene = new Group();
+    office.people = new Map();
+    office.actors = new Map();
+    office.t = 1300;
+    office.cw = 900;
+    office.ch = 700;
+    office.dpr = 1;
+    office.camera = {};
+    office.ctx = { save() {}, restore() {}, setTransform() {} };
+    office.helperWaiting = () => office.people.size;
+    office.drawHelperBadge = (_x, _y, n) => { office.badgeWaiting = n; };
+    office.build();
+    assert.ok(office.humanHelper?.station?.rim, 'helper has a visible 3D station');
+    assert.equal(office.room.children.length, 2, 'platform and human are added together');
+    assert.equal(office.humanHelper.station.obj.children[0].geometry.args[0], 0.81);
+    office.people.set('agent', { helpSpot: { x: 5.8, y: 6 }, s: { status: 'waiting' } });
+    office.syncActors(0.016);
+    assert.ok(office.humanHelper.station.light.intensity > 0.5, 'attention lights the marker');
+    office.draw();
+    assert.equal(office.badgeWaiting, 1);
+    office.people.clear();
+    office.syncActors(0.016);
+    assert.equal(office.humanHelper.station.light.intensity, 0.25, 'idle returns to soft glow');
+  }
+});
+
 test('a session already waiting when the dashboard opens visibly walks to the human', () => {
   const office = builtInOffice(4);
   office.first = true;
