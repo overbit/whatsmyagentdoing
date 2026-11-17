@@ -83,6 +83,106 @@ export function installMinions3D(Office3D, T) {
     return { obj, limbs };
   }
 
+  // A permanent human supervisor. The scene renders it independently of the
+  // agent roster, so it never appears in statuses, filters or resume commands.
+  function buildHuman() {
+    const obj = new Group();
+    const coat = mat('#e9f1f3'), coatSeam = mat('#a8beca');
+    const face = mat('#dfa581'), hair = mat('#4c302e');
+    const glasses = mat('#344758', 0.45, 0.45), shirt = mat('#377da5');
+
+    // Dark trousers, shoes, white coat, collar and an identification badge.
+    for (const x of [-0.12, 0.12]) {
+      cube(obj, x, 0.32, 0, 0.18, 0.53, 0.20, dark);
+      ball(obj, x, 0.08, 0.075, 0.12, boots, 1.05, 0.65, 1.42);
+    }
+    cube(obj, 0, 0.93, 0, 0.45, 0.69, 0.28, coat);
+    cube(obj, 0, 0.92, 0.158, 0.19, 0.44, 0.03, shirt);
+    for (const x of [-0.11, 0.11]) {
+      const lapel = cube(obj, x, 1.1, 0.172, 0.11, 0.26, 0.05, coat);
+      lapel.rotation.z = x > 0 ? 0.27 : -0.27;
+    }
+    cube(obj, 0, 0.81, 0.176, 0.02, 0.32, 0.025, coatSeam);
+    cube(obj, 0.16, 0.98, 0.166, 0.11, 0.065, 0.025, shirt);
+    cube(obj, 0.14, 0.99, 0.187, 0.045, 0.018, 0.02, yellowLight);
+
+    const arms = [];
+    for (const side of [-1, 1]) {
+      const arm = new Group();
+      arm.position.set(side * 0.27, 1.17, 0);
+      cube(arm, side * 0.008, -0.165, 0, 0.13, 0.36, 0.16, coat);
+      ball(arm, side * 0.012, -0.35, 0.02, 0.075, face);
+      obj.add(arm);
+      arms.push(arm);
+    }
+    // Recognisable human face, hair and spectacles, in contrast to goggles.
+    tube(obj, 0, 1.32, 0, 0.069, 0.15, face);
+    ball(obj, 0, 1.47, 0, 0.184, face, 0.89, 1.08, 0.82);
+    ball(obj, 0, 1.604, -0.018, 0.164, hair, 1.03, 0.38, 0.90);
+    ball(obj, -0.146, 1.51, 0, 0.075, hair, 0.56, 1.3, 1.0);
+    ball(obj, 0.146, 1.51, 0, 0.075, hair, 0.56, 1.3, 1.0);
+    for (const x of [-0.079, 0.079]) {
+      const rim = ball(obj, x, 1.479, 0.137, 0.066, glasses, 1.0, 0.8, 0.35);
+      ball(obj, x, 1.479, 0.16, 0.049, eyeWhite, 1.0, 0.85, 0.22);
+      ball(obj, x + 0.01, 1.48, 0.171, 0.02, black);
+    }
+    cube(obj, 0, 1.48, 0.16, 0.045, 0.015, 0.018, glasses);
+    ball(obj, 0, 1.393, 0.146, 0.045, iris, 1.0, 0.3, 0.25);
+    return { obj, arm: arms[1] };
+  }
+
+  const originalBuildScene = Office3D.prototype.buildScene;
+  Office3D.prototype.buildScene = function () {
+    originalBuildScene.call(this);
+    this.humanHelper = null;
+    if (!isLab(this) || !this.plan.helper) return;
+    const human = buildHuman();
+    human.obj.position.set(this.plan.helper.x, 0, this.plan.helper.y);
+    human.obj.rotation.y = 0.32;
+    this.room.add(human.obj);
+    this.humanHelper = human;
+  };
+
+  const originalFacing = Office3D.prototype.facing;
+  Office3D.prototype.facing = function (person, state) {
+    if (isLab(this) && person.helpSpot && state.pose !== 'walk') {
+      const helper = this.plan.helper;
+      return Math.atan2(helper.x - person.x, helper.y - person.y);
+    }
+    return originalFacing.call(this, person, state);
+  };
+
+  const originalDraw = Office3D.prototype.draw;
+  Office3D.prototype.draw = function () {
+    const result = originalDraw.call(this);
+    if (result === false || !isLab(this) || !this.humanHelper) return result;
+
+    // Reuse the existing canvas overlay for a legible world-anchored label.
+    const p = this.humanHelper.obj.position.clone();
+    p.y += 1.98;
+    p.project(this.camera);
+    if (p.z < -1 || p.z > 1) return result;
+    const x = (p.x + 1) * this.cw / 2;
+    const y = (1 - p.y) * this.ch / 2;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.roundRect(x - 27, y - 11, 54, 20, 8, '#203a4b');
+    ctx.font = '800 11px ui-sans-serif, system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff4ca';
+    ctx.fillText('HUMAN', x, y - 1);
+    if ([...this.people.values()].some((a) => a.helpSpot && a.s.status === 'waiting')) {
+      this.roundRect(x + 27, y - 14, 23, 23, 8, '#ffdc42');
+      ctx.font = '900 15px ui-sans-serif, system-ui, sans-serif';
+      ctx.fillStyle = '#203a4b';
+      ctx.fillText('?', x + 38.5, y - 2);
+    }
+    ctx.restore();
+    return result;
+  };
+
   const originalActor = Office3D.prototype.actorFor;
   Office3D.prototype.actorFor = function (p) {
     if (!isLab(this)) return originalActor.call(this, p);
@@ -119,6 +219,12 @@ export function installMinions3D(Office3D, T) {
         a.limbs.leftArm.rotation.x = -0.75 + Math.sin(time * 17) * 0.18;
         a.limbs.rightArm.rotation.x = -0.75 - Math.sin(time * 17) * 0.18;
       }
+    }
+    if (this.humanHelper) {
+      const waiting = [...this.people.values()].some(
+        (p) => p.helpSpot && p.s.status === 'waiting',
+      );
+      this.humanHelper.arm.rotation.z = waiting ? 2.7 + Math.sin(this.t / 240) * 0.13 : 0;
     }
   };
 
