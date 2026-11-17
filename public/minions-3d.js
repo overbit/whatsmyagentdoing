@@ -36,8 +36,14 @@ export class Office3D extends BaseOffice3D {
     if (actor.minion) return actor;
     // Ball + room primitives provide SphereGeometry, BoxGeometry and Mesh
     // without importing a second copy of the heavy Three.js bundle.
-    const ball = this.ball;
-    if (!ball || !this.room) return actor;
+    let ball = this.ball;
+    if (!this.room) return actor;
+    // Scene packs may not have the office's ping-pong ball. Find another
+    // sphere in the imported set dressing, or a live actor's 3D equipment.
+    if (!ball) this.room.traverse((part) => {
+      if (!ball && part.isMesh && part.geometry?.type === 'SphereGeometry') ball = part;
+    });
+    if (!ball) return actor;
     let sampleBox = null;
     this.room.traverse((part) => {
       if (!sampleBox && part.isMesh && part.geometry?.type === 'BoxGeometry') sampleBox = part;
@@ -47,7 +53,7 @@ export class Office3D extends BaseOffice3D {
     const Mesh = ball.constructor;
     const Sphere = ball.geometry.constructor;
     const Box = sampleBox.geometry.constructor;
-    const Material = ball.material.constructor;
+    const Material = (Array.isArray(ball.material) ? ball.material[0] : ball.material).constructor;
     const Group = actor.prop.constructor;
     const root = new Group();
     root.name = 'Minion character';
