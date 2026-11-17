@@ -304,9 +304,7 @@
       spots.push(p);
       if (spots.length >= Math.max(8, desks.length)) break;
     }
-    const stageRadius = clear(helper.x, helper.y, 0.84) ? 0.75
-      : clear(helper.x, helper.y, 0.6) ? 0.55 : 0.45;
-    return { ...helper, spots, stageRadius };
+    return { ...helper, spots };
   }
 
   // ---------------------------------------------------------------- office
@@ -970,42 +968,6 @@
       return [...this.people.values()].filter(
         (p) => p.helpSpot && p.s.status === 'waiting',
       ).length;
-    }
-
-    // A conspicuous but non-blocking floor medallion. The same landmark is
-    // drawn under every 2D human, regardless of the map's room styling.
-    drawHelperPad() {
-      const h = this.plan.helper;
-      if (!h) return;
-      const radius = h.stageRadius || 0.75;
-      const waiting = this.helperWaiting();
-      const disc = (r, fill) => {
-        const pts = [];
-        for (let i = 0; i < 32; i++) {
-          const a = i * Math.PI * 2 / 32;
-          pts.push(this.iso(h.x + Math.cos(a) * r, h.y + Math.sin(a) * r));
-        }
-        this.poly(pts, fill);
-      };
-      const pulse = 0.5 + 0.5 * Math.sin(this.t / 240);
-      disc(radius * 1.33, waiting
-        ? `rgba(255,207,74,${0.16 + pulse * 0.14})` : 'rgba(52,203,213,.14)');
-      disc(radius * 1.07, '#173244');
-      disc(radius, '#ffcf4a');
-      disc(radius * 0.79, '#21475a');
-      disc(radius * 0.63, '#34cbd5');
-      disc(radius * 0.4, '#163447');
-      // Four small bright ticks make the meeting place legible at small zoom.
-      for (let k = 0; k < 4; k++) {
-        const a = k * Math.PI / 2;
-        const x = h.x + Math.cos(a) * radius * 0.93;
-        const y = h.y + Math.sin(a) * radius * 0.93;
-        const p = this.iso(x, y);
-        this.ctx.fillStyle = '#fff6cf';
-        this.ctx.beginPath();
-        this.ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
-        this.ctx.fill();
-      }
     }
 
     // Screen-space badge: a consistent size in small PiP views and large
@@ -1874,7 +1836,6 @@
       c.scale(this.cam.zoom, this.cam.zoom);
 
       this.drawRoom();
-      if (this.plan.helper) this.drawHelperPad();
       const occupant = new Map();
       for (const p of this.people.values()) {
         if (p.mode === 'work' && p.desk) occupant.set(p.desk, p);
