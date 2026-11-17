@@ -31,7 +31,7 @@
       .filter((p) => !['floor', 'wall', 'sign', 'glow', 'lamp'].includes(p.special))
       .map((p) => ({ depth: p.x + p.y - (p.special === 'lab-console' ? 0.25 : 0), draw: () => null, prop: p }));
     return {
-      W: def.W, D: def.D, grid, items, props: def.props, desks, pois, door: def.spawn,
+      W: def.W, D: def.D, grid, items, props: def.props, desks, pois, door: def.spawn, helper: def.helper,
       fixed: true, noNap: true, windows: [], posters: [], pp: null, scene: def,
     };
   }
