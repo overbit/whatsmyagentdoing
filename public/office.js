@@ -1012,12 +1012,14 @@
     // offices, rather than a tiny label scaled down with the floor plan.
     drawHelperBadge(x, y, waiting = 0) {
       const c = this.ctx;
-      const compact = this.compact || this.cw < 560;
+      const canvasW = this.cw || 320, canvasH = this.ch || 240;
+      const compact = this.compact || canvasW < 560;
       const width = compact ? 130 : 156;
       const height = compact ? 37 : 42;
-      const visibleWidth = Math.max(width + 16, this.cw - this.inset());
+      const inset = typeof this.inset === 'function' ? this.inset() : 0;
+      const visibleWidth = Math.max(width + 16, canvasW - inset);
       x = clamp(x, width / 2 + 8, visibleWidth - width / 2 - 8);
-      y = clamp(y, height / 2 + 8, this.ch - height / 2 - 12);
+      y = clamp(y, height / 2 + 8, canvasH - height / 2 - 12);
       const top = y - height / 2;
       c.save();
       c.lineWidth = 2;
