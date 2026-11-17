@@ -97,9 +97,10 @@ function untar(buf, dest) {
 
 async function install(id) {
   const entry = catalog().find((s) => s.id === id);
-  if (!entry) throw new Error(`unknown scene: ${id}`);
   const have = installed().find((s) => s.id === id);
-  if (have && have.version >= entry.version) return have;
+  // A scene shipped with the application needs no catalog download entry.
+  if (have && (!entry || have.version >= entry.version)) return have;
+  if (!entry) throw new Error(`unknown scene: ${id}`);
   const gz = await download(entry.url);
   const sum = crypto.createHash('sha256').update(gz).digest('hex');
   if (sum !== entry.sha256) throw new Error(`checksum mismatch for ${id}; not installed`);
