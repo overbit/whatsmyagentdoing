@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { catalog, installed, sceneDir } = require('../src/scenes');
+const { catalog, installed, sceneDir, install } = require('../src/scenes');
 
 const root = path.join(__dirname, '..');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'scenes/minions/manifest.json'), 'utf8'));
@@ -16,6 +16,12 @@ test('Minions laboratory is a bundled scene that works offline', () => {
   assert.equal(manifest.version, 1);
   assert.equal(manifest.stations.length, 8);
   assert.ok(!catalog().some((s) => s.id === 'minions'), 'bundled lab does not require a remote download');
+});
+
+test('CLI scene installation reuses the bundled lab without downloading', async () => {
+  const scene = await install('minions');
+  assert.equal(scene.id, 'minions');
+  assert.equal(scene.version, 1);
 });
 
 test('lab stations, roaming activities, and props fit the map', () => {
