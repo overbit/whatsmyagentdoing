@@ -20,7 +20,7 @@
   "viewH": 3.05,
   "background": "#9ac6d1",
   "sky": "#9ac6d1",
-  "fixedSky": true,
+  "fixedSky": false,
   "spawn": {
     "x": 1.1,
     "y": 10.8
