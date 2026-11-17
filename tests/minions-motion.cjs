@@ -180,9 +180,12 @@ test('3D agents use independent poses for thinking, typing, waiting and celebrat
   const actor = o.actors.get(p.key);
   assert.ok(actor?.features?.goggles, 'goggles can adjust independently');
   assert.ok(actor.features.pupils.length, 'eyes can glance around');
+  assert.ok(actor.features.blinkParts.length, '3D eyes can blink');
+  const blink = actor.features.blinkParts[0].scale.y;
   const before = actor.features.pupils[0].position.x;
   o.t = 2400; o.syncActors(0.016);
   assert.notEqual(actor.features.pupils[0].position.x, before);
+  assert.notEqual(actor.features.blinkParts[0].scale.y, blink, '3D Minions blink intermittently');
   p.s.status = 'typing';
   o.t = 3000; o.syncActors(0.016);
   const typingArm = actor.limbs.rightArm.rotation.x;
