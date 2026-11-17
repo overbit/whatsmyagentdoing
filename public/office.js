@@ -966,15 +966,95 @@
       this.poly([P(0.05, dy - 0.6), P(0.9, dy - 0.6), P(0.9, dy + 0.6), P(0.05, dy + 0.6)], pal.dark ? '#5a3b2e' : '#b9654a');
     }
 
+    helperWaiting() {
+      return [...this.people.values()].filter(
+        (p) => p.helpSpot && p.s.status === 'waiting',
+      ).length;
+    }
+
+    // A conspicuous but non-blocking floor medallion. The same landmark is
+    // drawn under every 2D human, regardless of the map's room styling.
+    drawHelperPad() {
+      const h = this.plan.helper;
+      if (!h) return;
+      const radius = h.stageRadius || 0.75;
+      const waiting = this.helperWaiting();
+      const disc = (r, fill) => {
+        const pts = [];
+        for (let i = 0; i < 32; i++) {
+          const a = i * Math.PI * 2 / 32;
+          pts.push(this.iso(h.x + Math.cos(a) * r, h.y + Math.sin(a) * r));
+        }
+        this.poly(pts, fill);
+      };
+      const pulse = 0.5 + 0.5 * Math.sin(this.t / 240);
+      disc(radius * 1.33, waiting
+        ? `rgba(255,207,74,${0.16 + pulse * 0.14})` : 'rgba(52,203,213,.14)');
+      disc(radius * 1.07, '#173244');
+      disc(radius, '#ffcf4a');
+      disc(radius * 0.79, '#21475a');
+      disc(radius * 0.63, '#34cbd5');
+      disc(radius * 0.4, '#163447');
+      // Four small bright ticks make the meeting place legible at small zoom.
+      for (let k = 0; k < 4; k++) {
+        const a = k * Math.PI / 2;
+        const x = h.x + Math.cos(a) * radius * 0.93;
+        const y = h.y + Math.sin(a) * radius * 0.93;
+        const p = this.iso(x, y);
+        this.ctx.fillStyle = '#fff6cf';
+        this.ctx.beginPath();
+        this.ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
+        this.ctx.fill();
+      }
+    }
+
+    // Screen-space badge: a consistent size in small PiP views and large
+    // offices, rather than a tiny label scaled down with the floor plan.
+    drawHelperBadge(x, y, waiting = 0) {
+      const c = this.ctx;
+      const compact = this.compact || this.cw < 560;
+      const width = compact ? 130 : 156;
+      const height = compact ? 37 : 42;
+      const visibleWidth = Math.max(width + 16, this.cw - this.inset());
+      x = clamp(x, width / 2 + 8, visibleWidth - width / 2 - 8);
+      y = clamp(y, height / 2 + 8, this.ch - height / 2 - 12);
+      const top = y - height / 2;
+      c.save();
+      c.lineWidth = 2;
+      c.strokeStyle = waiting ? '#ffcf4a' : '#34cbd5';
+      c.beginPath();
+      c.moveTo(x, y + height / 2);
+      c.lineTo(x, y + height / 2 + 12);
+      c.stroke();
+      this.roundRect(x - width / 2, top, width, height, 11, '#172d3e', '#ffcf4a');
+      const iconX = x - width / 2 + 23;
+      c.beginPath();
+      c.arc(iconX, y, compact ? 12 : 14, 0, Math.PI * 2);
+      c.fillStyle = '#ffcf4a';
+      c.fill();
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = '#203444';
+      c.font = `900 ${compact ? 16 : 19}px ui-sans-serif, system-ui, sans-serif`;
+      c.fillText('?', iconX, y + 0.5);
+      const textX = x - width / 2 + (compact ? 44 : 48);
+      c.textAlign = 'left';
+      c.fillStyle = '#ffffff';
+      c.font = `800 ${compact ? 11 : 12}px ui-sans-serif, system-ui, sans-serif`;
+      c.fillText('HUMAN', textX, y - 7);
+      c.fillStyle = waiting ? '#ffcf4a' : '#5fe7e1';
+      c.font = `700 ${compact ? 8 : 9}px ui-sans-serif, system-ui, sans-serif`;
+      c.fillText(waiting ? `${waiting} WAITING` : 'HELP STATION', textX, y + 9);
+      c.restore();
+    }
+
     // The one human operator is always on duty in the lab. It is deliberately
     // taller and dressed in a white coat so it cannot be mistaken for an agent.
     drawHuman() {
       const { x, y } = this.plan.helper;
       const c = this.ctx;
       const foot = this.iso(x, y);
-      const visitors = [...this.people.values()].filter(
-        (p) => p.helpSpot && p.s.status === 'waiting',
-      ).length;
+      const visitors = this.helperWaiting();
       const wave = visitors ? Math.sin(this.t / 240) * 4 : 0;
       c.save();
       c.translate(foot.x, foot.y);
@@ -1029,18 +1109,6 @@
       c.strokeStyle = '#905e47'; c.lineWidth = 1.2;
       c.beginPath(); c.arc(0, -61, 3, 0.12 * Math.PI, 0.88 * Math.PI); c.stroke();
 
-      // Local scene marker, not a toolbar or dashboard-theme change.
-      this.roundRect(-24, -104, 48, 15, 7, '#203a4b');
-      c.font = '800 9px ui-sans-serif, system-ui, sans-serif';
-      c.fillStyle = '#fff4ca';
-      c.textAlign = 'center'; c.textBaseline = 'middle';
-      c.fillText('HUMAN', 0, -96.5);
-      if (visitors) {
-        this.roundRect(18, -91, 18, 19, 7, '#ffdc42');
-        c.fillStyle = '#223b4a';
-        c.font = '900 14px ui-sans-serif, system-ui, sans-serif';
-        c.fillText('?', 27, -81);
-      }
       c.restore();
     }
 
@@ -1804,6 +1872,7 @@
       c.scale(this.cam.zoom, this.cam.zoom);
 
       this.drawRoom();
+      if (this.plan.helper) this.drawHelperPad();
       const occupant = new Map();
       for (const p of this.people.values()) {
         if (p.mode === 'work' && p.desk) occupant.set(p.desk, p);
@@ -1840,6 +1909,17 @@
         c.restore();
       } else {
         for (const [p, at] of heads) this.bubble(p, at);
+      }
+
+      if (this.plan.helper) {
+        const h = this.plan.helper;
+        const anchor = this.iso(h.x, h.y, 2.65);
+        const px = anchor.x * this.cam.zoom + this.cam.ox;
+        const py = anchor.y * this.cam.zoom + this.cam.oy - 35;
+        c.save();
+        c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        this.drawHelperBadge(px, py, this.helperWaiting());
+        c.restore();
       }
 
       if (this.offDuty > 0) {
