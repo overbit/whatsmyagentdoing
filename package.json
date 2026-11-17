@@ -10,6 +10,7 @@
     "src",
     "public",
     "assets",
+    "scenes",
     "SKILL.md"
   ],
   "engines": {
@@ -39,7 +40,7 @@
     "three": "^0.186.1"
   },
   "scripts": {
-    "build": "esbuild web/office3d.js --bundle --format=esm --minify --target=es2020 --outfile=public/office3d.js --legal-comments=eof",
+    "build": "esbuild web/office3d.js --bundle --format=esm --minify --target=es2020 --outfile=public/office3d.js --external:/minions3d.js --legal-comments=eof",
     "start": "node bin/cli.js",
     "test:ui": "node tests/ui.cjs",
     "test:watcher": "node --test tests/watcher.cjs tests/omp.cjs",
