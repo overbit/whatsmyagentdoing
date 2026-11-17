@@ -229,6 +229,37 @@ test('2D Minions have animated idle and celebration states', () => {
   assert.ok(p.minionCelebrateUntil <= room.t, 'celebration stops');
 });
 
+test('2D tool use and off-duty actions have distinct hand gestures', () => {
+  const { room, trace } = fake2D();
+  const p = { key: 'codex:a', h: 4, phase: 0, x: 2, y: 3,
+    s: { status: 'thinking' }, testState: { pose: 'stand', act: 'station', sitZ: 0 } };
+  room.stateOf = (actor) => actor.testState;
+  const arms = (status, action = 'station') => {
+    p.s.status = status; p.testState.act = action; trace.length = 0;
+    room.t = 2200;
+    room.person(p);
+    return JSON.stringify(trace.filter((call) => call[0] === 'lineTo').slice(0, 2));
+  };
+  const thinking = arms('thinking');
+  assert.notEqual(arms('typing'), thinking, 'typing moves the hands');
+  assert.notEqual(arms('tool'), thinking, 'tool work moves the hands');
+  assert.notEqual(arms('idle', 'read'), arms('idle', null), 'reading moves both hands');
+});
+
+test('3D off-duty reading and coffee actions animate hands independently of sessions', () => {
+  const { office } = fakeThree();
+  const o = office();
+  const p = { key: 'codex:idle', h: 4, phase: 0, x: 2, y: 3,
+    s: { status: 'idle' }, testState: { pose: 'stand', act: 'read' } };
+  o.people.set(p.key, p);
+  const a = o.actorFor(p);
+  o.t = 1000; o.syncActors(0.016);
+  assert.ok(a.limbs.leftArm.rotation.x < -0.35, 'reading holds something with left hand');
+  assert.ok(a.limbs.rightArm.rotation.x < -0.35, 'reading holds something with right hand');
+  p.testState.act = 'coffee'; o.syncActors(0.016);
+  assert.ok(a.limbs.rightArm.rotation.x < -0.3, 'coffee lifts right hand');
+});
+
 test('animation remains isolated to Minions Lab', () => {
   const { office } = fakeThree();
   const pirate = office({ id: 'pirate', props: [] });
