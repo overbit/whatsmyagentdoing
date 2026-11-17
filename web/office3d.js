@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { installMinions3D } from '/minions3d.js';
 
 const CHARACTERS = ['male-a', 'male-b', 'male-c', 'male-d', 'male-e', 'male-f',
   'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'];
@@ -1261,3 +1262,6 @@ export class Office3D extends window.Office {
     super.pointer(e, click);
   }
 }
+
+// Add the opt-in laboratory without modifying the regular office or scene packs.
+installMinions3D(Office3D, THREE);
