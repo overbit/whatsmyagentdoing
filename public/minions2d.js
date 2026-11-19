@@ -30,8 +30,10 @@
     const items = def.props
       .filter((p) => !['floor', 'wall', 'sign', 'glow', 'lamp'].includes(p.special))
       .map((p) => ({ depth: p.x + p.y - (p.special === 'lab-console' ? 0.25 : 0), draw: () => null, prop: p }));
+    const ambient = window.MinionsAmbient.create(def, grid);
+    for (const npc of ambient) items.push({ ambientNpc: npc, depth: npc.x + npc.y, draw: () => null });
     return {
-      W: def.W, D: def.D, grid, items, props: def.props, desks, pois, door: def.spawn, helper: def.helper,
+      W: def.W, D: def.D, grid, items, ambient, props: def.props, desks, pois, door: def.spawn, helper: def.helper,
       fixed: true, noNap: true, windows: [], posters: [], pp: null, scene: def,
     };
   }
@@ -46,6 +48,17 @@
 
     buildPlan() {
       return labPlan(pendingScene || this.lab);
+    }
+
+    step(dt) {
+      super.step(dt);
+      window.MinionsAmbient.tick(this.plan.ambient, this.plan.grid, dt);
+    }
+
+    drawAmbientMinion(npc) {
+      // Decorative NPCs render in the same depth-sorted world as agents, but
+      // aren't real sessions, hover targets or status bubbles.
+      this.person(npc);
     }
 
     // Drawing the scene ourselves keeps it fully offline and makes Medium as
@@ -80,7 +93,15 @@
         c.fillStyle = '#ffd93c'; c.font = '800 10px system-ui, sans-serif';
         c.textAlign = 'center'; c.fillText('BANANA', 0, 0); c.fillText('RESEARCH', 0, 11);
       });
-      for (const item of this.plan.items) item.draw = () => this.drawLabProp(item.prop);
+      for (const item of this.plan.items) {
+        if (item.ambientNpc) {
+          const npc = item.ambientNpc;
+          item.depth = npc.x + npc.y + 0.01;
+          item.draw = () => this.drawAmbientMinion(npc);
+        } else {
+          item.draw = () => this.drawLabProp(item.prop);
+        }
+      }
     }
 
     drawLabProp(p) {
@@ -326,7 +347,7 @@
       }
       c.restore();
       const top = b.y - bob - 49 * scale;
-      this.hit.push({ key: p.key, x0: b.x - 17, x1: b.x + 17, y0: top - 4, y1: foot.y + 5 });
+      if (!p.ambient) this.hit.push({ key: p.key, x0: b.x - 17, x1: b.x + 17, y0: top - 4, y1: foot.y + 5 });
       return { x: b.x, y: top, act: st.act };
     }
   }
