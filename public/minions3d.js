@@ -9,6 +9,9 @@ export function installMinions3D(Office3D, T) {
   const yellowLight = mat('#ffe25b', 0.3, 0.05, '#ffcc35');
   const mintLight = mat('#68e5e1', 0.3, 0.05, '#1ddbd5');
   const isLab = (office) => office.plan?.scene?.id === 'minions';
+  // This lightweight controller is loaded by the dashboard before either
+  // renderer. Absent in isolated module tests or other map integrations.
+  const ambientSystem = typeof window === 'undefined' ? null : window.MinionsAmbient;
 
   function mat(color, roughness = 0.8, metalness = 0, emissive = '#000000') {
     return new MeshStandardMaterial({ color, roughness, metalness, emissive,
@@ -152,6 +155,14 @@ export function installMinions3D(Office3D, T) {
       ? { consoles: [], tanks: [], rockets: [], conveyors: [], drones: [], vents: [], bots: [] }
       : null;
     originalBuild.call(this);
+    this.ambientActors = [];
+    if (isLab(this) && ambientSystem && this.plan.grid) {
+      for (const npc of ambientSystem.create(this.plan.scene, this.plan.grid)) {
+        const { obj, limbs, features } = minion(npc);
+        this.room.add(obj);
+        this.ambientActors.push({ npc, obj, limbs, features, yaw: 0 });
+      }
+    }
     this.humanHelper = null;
     if (!this.plan.helper) return;
     const human = buildHuman();
