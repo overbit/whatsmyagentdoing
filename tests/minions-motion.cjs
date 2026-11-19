@@ -70,6 +70,7 @@ function fake2D() {
   const win = {};
   const browser = { window: win, Image: class {} };
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/office.js'), 'utf8'), browser);
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/minions-ambient.js'), 'utf8'), browser);
   vm.runInNewContext(fs.readFileSync(path.join(root, 'public/minions2d.js'), 'utf8'), browser);
   const room = Object.create(win.MinionsOffice.prototype);
   room.lab = def;
