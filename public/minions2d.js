@@ -265,10 +265,16 @@
         if (p.s.status === 'done') p.minionCelebrateUntil = this.t + 2400;
       }
       const walk = st.pose === 'walk';
+      const dancing = !walk && st.act === 'dance';
+      const snacking = !walk && st.act === 'eat-banana';
+      const chatting = !walk && st.act === 'chat';
+      const inspecting = !walk && st.act === 'inspect';
+      const stretching = !walk && st.act === 'stretch';
       const celebrating = !walk && p.s.status === 'done' && p.minionCelebrateUntil > this.t;
       const step = walk ? Math.sin(t * 12 + p.phase) : 0;
       const bob = walk ? Math.abs(step) * 2 :
-        celebrating ? Math.abs(Math.sin(t * 9)) * 3 : Math.sin(t * 1.8 + p.phase) * 1.1;
+        dancing || celebrating ? Math.abs(Math.sin(t * 9 + p.phase)) * 3 :
+          Math.sin(t * 1.8 + p.phase) * 1.1;
       const foot = this.iso(p.x, p.y);
       const b = this.iso(p.x, p.y, st.sitZ);
       const scale = p.s.subagent ? 0.8 : 1;
@@ -283,7 +289,7 @@
           }
         }
       }
-      const wave = st.act === 'wave' || celebrating || greeting;
+      const wave = st.act === 'wave' || celebrating || greeting || chatting || dancing || stretching;
       const eyes = p.h % 3 === 0 ? 1 : 2;
       const sleepy = p.s.status === 'idle';
       c.save();
@@ -306,17 +312,31 @@
       const read = !walk && st.act === 'read';
       const holding = !walk && (st.act === 'coffee' || st.act === 'water');
       const tap = Math.sin(t * (p.s.status === 'tool' ? 18 : 13) + p.phase) * 4;
-      const leftX = celebrating ? -18 - Math.sin(t * 10) * 2 : -17;
-      const leftY = celebrating ? -43 : scratch || read ? -35 :
+      const leftX = celebrating || dancing ? -18 - Math.sin(t * 10) * 2 : -17;
+      const leftY = celebrating || dancing || stretching ? -43 : scratch || read || inspecting ? -35 :
         busy ? -28 + tap : -17 + step * 3;
       const rightX = wave ? 17 + Math.sin(t * 9) * 2 : 17;
-      const rightY = wave ? -43 : busy ? -28 - tap : read || holding ? -35 : -19;
+      const rightY = snacking ? -27 + Math.sin(t * 7 + p.phase) * 4 :
+        wave ? -43 : inspecting ? -31 : busy ? -28 - tap : read || holding ? -35 : -19;
       c.beginPath(); c.moveTo(-9, -29); c.lineTo(leftX, leftY);
       c.moveTo(9, -29); c.lineTo(rightX, rightY);
       c.stroke();
       c.fillStyle = '#292d36';
       c.beginPath(); c.arc(leftX, leftY, 4, 0, 2 * Math.PI);
       c.arc(rightX, rightY, 4, 0, 2 * Math.PI); c.fill();
+      if (snacking) {
+        // A bite-sized banana rises to the mouth, getting smaller as it is eaten.
+        const bite = p.ambient ? p.actionProgress : (t * 0.18 + p.phase / 6) % 1;
+        const size = 1 - Math.floor(bite * 4) * 0.19;
+        c.strokeStyle = '#ad7819'; c.lineWidth = 5 * size; c.lineCap = 'round';
+        c.beginPath(); c.moveTo(rightX - 4, rightY + 1);
+        c.quadraticCurveTo(rightX + 3, rightY + 7, rightX + 9 * size, rightY - 5);
+        c.stroke();
+        c.strokeStyle = '#ffe34d'; c.lineWidth = 3.5 * size; c.stroke();
+        if (Math.sin(t * 10 + p.phase) > 0.65) {
+          c.fillStyle = '#ffe7a5'; c.fillRect(6, -22, 2, 2);
+        }
+      }
       // Capsule body with denim overalls.
       this.roundRect(-12, -44, 24, 40, 11, YELLOW, '#d3ad20');
       this.roundRect(-12, -17, 24, 14, 3, BLUE);
