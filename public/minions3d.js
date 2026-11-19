@@ -156,11 +156,13 @@ export function installMinions3D(Office3D, T) {
       : null;
     originalBuild.call(this);
     this.ambientActors = [];
+    this.ambientNpcs = [];
     if (isLab(this) && ambientSystem && this.plan.grid) {
       for (const npc of ambientSystem.create(this.plan.scene, this.plan.grid)) {
         const { obj, limbs, features } = minion(npc);
         this.room.add(obj);
         this.ambientActors.push({ npc, obj, limbs, features, yaw: 0 });
+        this.ambientNpcs.push(npc);
       }
     }
     this.humanHelper = null;
@@ -302,6 +304,71 @@ export function installMinions3D(Office3D, T) {
     }
   }
 
+  function animateSnack(features, progress, time) {
+    const banana = features.banana;
+    banana.visible = true;
+    // Lift to the mouth in repeated bites; shrink across the snack.
+    const bite = Math.floor(Math.max(0, Math.min(0.999, progress)) * 4);
+    banana.scale.setScalar(1 - bite * 0.19);
+    banana.position.set(0.24 - Math.sin(time * 7) * 0.08,
+      0.48 + Math.max(0, Math.sin(time * 7)) * 0.19, 0.36);
+  }
+
+  function animateAmbient(office, dt) {
+    if (!ambientSystem || !office.ambientActors?.length) return;
+    ambientSystem.tick(office.ambientNpcs, office.plan.grid, dt);
+    for (const actor of office.ambientActors) {
+      const npc = actor.npc, limbs = actor.limbs, f = actor.features;
+      const time = office.t / 1000 + npc.phase;
+      const walking = npc.path.length > 0;
+      const step = walking ? Math.sin(time * 10) * 0.5 : 0;
+      actor.obj.position.set(npc.x, 0, npc.y);
+      if (walking) {
+        const next = npc.path[0];
+        const dx = next.x - npc.x, dy = next.y - npc.y;
+        const angle = Math.atan2(dx, dy);
+        const delta = Math.atan2(Math.sin(angle - actor.yaw), Math.cos(angle - actor.yaw));
+        actor.yaw += delta * Math.min(1, dt * 7);
+      } else {
+        actor.yaw += Math.sin(time * 0.6) * dt * 0.1;
+      }
+      actor.obj.rotation.y = actor.yaw;
+      f.body.scale.y = f.bodyScaleY * (1 + Math.sin(time * 2.2) * 0.02);
+      f.goggles.rotation.z = Math.sin(time * 0.8) * 0.027;
+      f.goggles.position.y = Math.sin(time * 1.2) * 0.012;
+      for (const eye of f.eyes) eye.obj.position.x = eye.restX + Math.sin(time * 0.7) * 0.025;
+      const blink = Math.sin(time * 1.15) > 0.995 ? 0.14 : 1;
+      for (const eye of f.blinkParts) eye.scale.y = blink;
+      limbs.leftLeg.rotation.x = step;
+      limbs.rightLeg.rotation.x = -step;
+      limbs.leftArm.rotation.x = -step * 0.75;
+      limbs.rightArm.rotation.x = step * 0.75;
+      limbs.leftArm.rotation.z = 0.13;
+      limbs.rightArm.rotation.z = -0.13;
+      actor.obj.position.y = npc.act === 'dance' ? Math.abs(Math.sin(time * 8)) * 0.07 : 0;
+      f.banana.visible = false;
+      if (walking) continue;
+      if (npc.act === 'eat-banana') {
+        limbs.rightArm.rotation.x = -0.9 + Math.sin(time * 7) * 0.15;
+        limbs.rightArm.rotation.z = 1.15;
+        animateSnack(f, npc.actionProgress, time);
+      } else if (npc.act === 'dance') {
+        limbs.leftArm.rotation.z = -2.2 + Math.sin(time * 9) * 0.2;
+        limbs.rightArm.rotation.z = 2.2 - Math.sin(time * 9) * 0.2;
+        limbs.leftLeg.rotation.x = Math.sin(time * 8) * 0.25;
+        limbs.rightLeg.rotation.x = -limbs.leftLeg.rotation.x;
+      } else if (npc.act === 'chat') {
+        limbs.rightArm.rotation.z = 2.0 + Math.sin(time * 6) * 0.2;
+      } else if (npc.act === 'inspect') {
+        limbs.rightArm.rotation.x = -1.15 + Math.sin(time * 3) * 0.14;
+        f.goggles.rotation.z = -0.08;
+      } else if (npc.act === 'stretch') {
+        limbs.leftArm.rotation.z = -2.5;
+        limbs.rightArm.rotation.z = 2.5;
+      }
+    }
+  }
+
   const originalSync = Office3D.prototype.syncActors;
   Office3D.prototype.syncActors = function (dt) {
     originalSync.call(this, dt);
@@ -313,6 +380,7 @@ export function installMinions3D(Office3D, T) {
     }
     if (!isLab(this)) return;
     animateLab(this, this.t / 1000);
+    animateAmbient(this, dt);
     for (const p of this.people.values()) {
       const a = this.actors.get(p.key);
       if (!a?.limbs) continue;
