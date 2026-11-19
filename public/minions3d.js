@@ -87,7 +87,13 @@ export function installMinions3D(Office3D, T) {
       obj.add(arm);
       limbs[side < 0 ? 'leftArm' : 'rightArm'] = arm;
     }
-    return { obj, limbs, features: { body, goggles, pupils: pupils.map((p) => p.obj),
+    const banana = new Group();
+    ball(banana, 0, 0, 0, 0.15, yellowLight, 1.15, 0.47, 0.55);
+    cube(banana, 0.13, 0.025, 0, 0.045, 0.065, 0.05, dark);
+    banana.visible = false;
+    banana.position.set(0.27, 0.45, 0.35);
+    obj.add(banana);
+    return { obj, limbs, features: { body, goggles, banana, pupils: pupils.map((p) => p.obj),
       eyes: [...irises, ...pupils], blinkParts, bodyScaleY: body.scale.y } };
   }
 
