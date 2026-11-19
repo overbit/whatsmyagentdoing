@@ -410,6 +410,7 @@ export function installMinions3D(Office3D, T) {
       a.limbs.rightArm.rotation.x = swing * 0.75;
       a.limbs.leftArm.rotation.z = 0.13;
       a.limbs.rightArm.rotation.z = -0.13;
+      f.banana.visible = false;
       if (st.pose === 'walk') continue;
       if (celebrating) {
         a.limbs.leftArm.rotation.z = -2.3 + Math.sin(time * 11) * 0.15;
@@ -418,6 +419,10 @@ export function installMinions3D(Office3D, T) {
       } else if (status === 'waiting' || st.act === 'wave') {
         a.limbs.rightArm.rotation.z = 2.6 + Math.sin(time * 8) * 0.24;
         a.limbs.leftArm.rotation.x = -0.22;
+      } else if (st.act === 'eat-banana') {
+        a.limbs.rightArm.rotation.x = -0.9 + Math.sin(time * 7) * 0.15;
+        a.limbs.rightArm.rotation.z = 1.15;
+        animateSnack(f, (time * 0.17) % 1, time);
       } else if (status === 'typing' || status === 'tool' || st.act === 'type') {
         const speed = status === 'tool' ? 18 : 13;
         a.limbs.leftArm.rotation.x = -0.8 + Math.sin(time * speed) * 0.25;
@@ -426,6 +431,18 @@ export function installMinions3D(Office3D, T) {
         a.limbs.leftArm.rotation.x = -0.38 + Math.sin(time * 1.6) * 0.22;
         // Sometimes a thinking Minion scratches or readjusts its goggles.
         if (Math.sin(time * 0.8) > 0.85) a.limbs.rightArm.rotation.z = 2.05;
+      } else if (st.act === 'dance') {
+        a.limbs.leftArm.rotation.z = -2.3 + Math.sin(time * 9) * 0.18;
+        a.limbs.rightArm.rotation.z = 2.3 - Math.sin(time * 9) * 0.18;
+        a.limbs.leftLeg.rotation.x = Math.sin(time * 8) * 0.25;
+        a.limbs.rightLeg.rotation.x = -a.limbs.leftLeg.rotation.x;
+      } else if (st.act === 'chat') {
+        a.limbs.rightArm.rotation.z = 2.0 + Math.sin(time * 6) * 0.2;
+      } else if (st.act === 'inspect') {
+        a.limbs.rightArm.rotation.x = -1.15 + Math.sin(time * 3) * 0.14;
+      } else if (st.act === 'stretch') {
+        a.limbs.leftArm.rotation.z = -2.5;
+        a.limbs.rightArm.rotation.z = 2.5;
       } else if (st.act === 'read') {
         a.limbs.leftArm.rotation.x = -0.65 + Math.sin(time * 0.8) * 0.08;
         a.limbs.rightArm.rotation.x = -0.65 - Math.sin(time * 0.8) * 0.08;
