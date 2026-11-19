@@ -91,8 +91,13 @@ export function installMinions3D(Office3D, T) {
       limbs[side < 0 ? 'leftArm' : 'rightArm'] = arm;
     }
     const banana = new Group();
-    ball(banana, 0, 0, 0, 0.15, yellowLight, 1.15, 0.47, 0.55);
-    cube(banana, 0.13, 0.025, 0, 0.045, 0.065, 0.05, dark);
+    // Three overlapping curved pieces read as a banana at isometric zoom.
+    for (let i = -1; i <= 1; i++) {
+      const segment = ball(banana, i * 0.105, Math.abs(i) * 0.034, 0,
+        0.095, yellowLight, 1.08, 0.48, 0.6);
+      segment.rotation.z = -i * 0.27;
+    }
+    cube(banana, 0.205, 0.08, 0, 0.04, 0.065, 0.05, dark);
     banana.visible = false;
     banana.position.set(0.27, 0.45, 0.35);
     obj.add(banana);
