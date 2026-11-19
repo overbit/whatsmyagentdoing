@@ -189,6 +189,8 @@ test('3D ambient Minions independently animate snacks and reset on map changes',
   office.build();
   assert.equal(office.ambientActors.length, 3);
   const actors = office.ambientActors;
+  assert.ok(actors.every((a) => a.features.banana.children.length >= 4),
+    'a banana snack uses a recognizably curved silhouette');
   const before = actors.map((a) => ({ x: a.obj.position.x, y: a.obj.position.z }));
   let sawBanana = false;
   for (let i = 0; i < 2200; i++) {
