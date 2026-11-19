@@ -95,3 +95,124 @@ test('2D and 3D renderers consume the same ambient state without fake session ac
   assert.match(threeD, /ambientActors/);
   assert.match(threeD, /eat-banana/);
 });
+
+test('2D background characters are depth-sorted and never clickable session targets', () => {
+  const browser = { window: {}, Image: class {} };
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/office.js'), 'utf8'), browser);
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/minions-ambient.js'), 'utf8'), browser);
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'public/minions2d.js'), 'utf8'), browser);
+  const room = Object.create(browser.window.MinionsOffice.prototype);
+  room.lab = manifest;
+  room.plan = room.buildPlan();
+  room.people = new Map();
+  room.deskOf = new Map();
+  room.hit = [];
+  room.hoverKey = null;
+  room.cat = { x: 3, y: 6, path: [], until: 0 };
+  room.moveCat = () => {};
+  room.t = 0;
+  room.iso = (x, y, z = 0) => ({ x: (x - y) * 12, y: (x + y) * 6 - z * 28 });
+  room.poly = () => {};
+  room.box = () => {};
+  room.roundRect = () => {};
+  room.onWall = () => {};
+  const calls = [];
+  room.ctx = new Proxy({}, {
+    get(target, key) {
+      return key in target ? target[key] : (...args) => calls.push([key, ...args]);
+    },
+    set(target, key, value) { target[key] = value; return true; },
+  });
+  for (let i = 0; i < 80; i++) { room.step(0.05); room.t += 50; }
+  room.drawRoom();
+  const items = room.plan.items.filter((item) => item.ambientNpc);
+  assert.equal(items.length, 3);
+  assert.ok(items.every((item) => Math.abs(item.depth - item.ambientNpc.x -
+    item.ambientNpc.y - 0.01) < 0.001));
+  items.forEach((item) => item.draw());
+  assert.equal(room.hit.length, 0);
+  assert.equal(room.people.size, 0, 'background Minions are not real sessions');
+  const npc = room.plan.ambient[0];
+  npc.path = []; npc.poi = { act: 'eat-banana' };
+  npc.act = 'eat-banana'; npc.actionProgress = 0.5;
+  calls.length = 0;
+  room.drawAmbientMinion(npc);
+  assert.ok(calls.some(([name]) => name === 'quadraticCurveTo'),
+    '2D eating scene draws a curved, shrinking banana');
+});
+
+test('3D ambient Minions independently animate snacks and reset on map changes', () => {
+  const { grid, ambient } = setup();
+  const vec = () => ({ x: 0, y: 0, z: 0,
+    set(x, y, z) { this.x = x; this.y = y; this.z = z; return this; },
+    setScalar(v) { this.x = this.y = this.z = v; return this; },
+  });
+  class Group {
+    constructor() { this.children = []; this.position = vec(); this.rotation = { x: 0, y: 0, z: 0 };
+      this.scale = vec(); this.scale.setScalar(1); this.visible = true; }
+    add(...children) { this.children.push(...children); }
+  }
+  class Mesh extends Group {
+    constructor(geometry, material) { super(); this.geometry = geometry; this.material = material; }
+  }
+  class Material {
+    constructor(options) { Object.assign(this, options);
+      this.color = { set() {} }; this.emissive = { set() {} }; }
+  }
+  class Geometry { constructor(...args) { this.args = args; } }
+  class Fake3D {
+    constructor() {
+      this.plan = { scene: manifest, helper: manifest.helper, grid };
+      this.scene = new Group();
+      this.people = new Map();
+      this.actors = new Map();
+      this.t = 0;
+    }
+    build() {
+      this.room = new Group(); this.scene.add(this.room);
+      for (const prop of this.plan.scene.props) this.buildSceneProp(prop);
+    }
+    buildSceneProp() {}
+    syncActors() {}
+    actorFor() { throw new Error('not a real session'); }
+    facing() { return 0; }
+    surfaceAt() { return 0; }
+  }
+  const T = { Group, Mesh, MeshStandardMaterial: Material, MeshBasicMaterial: Material,
+    BoxGeometry: Geometry, CylinderGeometry: Geometry, SphereGeometry: Geometry,
+    ConeGeometry: Geometry };
+  const source = fs.readFileSync(path.join(root, 'public/minions3d.js'), 'utf8')
+    .replace('export function installMinions3D', 'function installMinions3D');
+  new Function('window', 'Office3D', 'T',
+    source + ';installMinions3D(Office3D,T);')({ MinionsAmbient: ambient }, Fake3D, T);
+  const office = new Fake3D();
+  office.build();
+  assert.equal(office.ambientActors.length, 3);
+  const actors = office.ambientActors;
+  const before = actors.map((a) => ({ x: a.obj.position.x, y: a.obj.position.z }));
+  let sawBanana = false;
+  for (let i = 0; i < 2200; i++) {
+    office.t = i * 50;
+    office.syncActors(0.05);
+    sawBanana ||= actors.some((a) => a.features.banana.visible);
+  }
+  assert.ok(sawBanana, 'the banana prop appears during eating');
+  assert.ok(actors.every((a, i) => Math.hypot(a.obj.position.x - before[i].x,
+    a.obj.position.z - before[i].y) > 0.1));
+  assert.equal(office.actors.size, 0, 'no fake session actors created');
+  office.plan.scene = { id: 'pirate', props: [] };
+  office.build();
+  assert.equal(office.ambientActors.length, 0);
+  office.plan.scene = manifest;
+  office.build();
+  assert.equal(office.ambientActors.length, 3, 'scene rebuild replaces, not duplicates, extras');
+});
+
+test('all ambient assets remain served locally without external dependencies', () => {
+  const html = fs.readFileSync(path.join(root, 'public/index.html'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'src/server.js'), 'utf8');
+  assert.match(html, /<script src="\/minions-ambient\.js"><\/script>/);
+  assert.match(server, /'\/minions-ambient\.js'/);
+  assert.ok(!fs.readFileSync(path.join(root, 'public/minions-ambient.js'), 'utf8')
+    .includes('fetch('), 'ambient simulation never requests network access');
+});
