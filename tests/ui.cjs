@@ -473,6 +473,17 @@ async function drawnLogos(target) {
   }), true);
   assert.equal(await labPage.evaluate(() => ['conveyor', 'drone', 'vent', 'banana-bot']
     .every((type) => office.plan.props.some((p) => p.special === type))), true);
+  assert.equal(await labPage.evaluate(() => office.plan.ambient?.length === 3 &&
+    office.plan.ambient.every((p) => !office.people.has(p.key))), true);
+  const first2D = await labPage.evaluate(() => {
+    const p = office.plan.ambient[0];
+    return [p.key, p.x, p.y];
+  });
+  await labPage.waitForFunction(([key, x, y]) => {
+    const p = office.plan.ambient.find((n) => n.key === key);
+    return p && Math.hypot(p.x - x, p.y - y) > 0.2;
+  }, first2D, { timeout: 10000 });
+  check('2D Minions roam independently of real agent sessions');
   await screenshot(labPage, 'minions-helper-2d');
   assert.equal(await humanLandmark(labPage), true);
   check('2D laboratory draws a separate human and routes waiting agents to it');
@@ -495,6 +506,17 @@ async function drawnLogos(target) {
   assert.equal(ambient.tanks, 2);
   assert.equal(ambient.consoles, 8);
   assert.ok(ambient.bots && ambient.vents && ambient.conveyors);
+  assert.equal(await labPage.evaluate(() => office.ambientActors?.length === 3 &&
+    office.ambientActors.every(({ npc }) => !office.people.has(npc.key) &&
+      !office.actors.has(npc.key))), true);
+  const first3D = await labPage.evaluate(() => {
+    const { npc } = office.ambientActors[0]; return [npc.x, npc.y];
+  });
+  await labPage.waitForFunction(([x, y]) => {
+    const { npc } = office.ambientActors[0];
+    return Math.hypot(npc.x - x, npc.y - y) > 0.2;
+  }, first3D, { timeout: 10000 });
+  check('3D Minions follow individual activity routes without fake session actors');
   await labPage.waitForFunction((firstX) => !!office.labFx?.drones.length &&
     Math.abs(office.labFx.drones[0].obj.position.x - firstX) > 0.05,
   ambient.droneX, { timeout: 5000 });
