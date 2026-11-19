@@ -199,6 +199,114 @@
     }
   }
 
+  // Find a clear, reachable gathering area for the human in any floor plan.
+  // Downloadable scenes can contain separate islands or narrow walkways; the
+  // human belongs on the connected region that contains the most workstations.
+  function createHelper({ W, D, grid, desks = [], pois = [], door }) {
+    const { cw, ch, res: R, cost } = grid;
+    const groups = new Int32Array(cost.length).fill(-1);
+    const sizes = [];
+    for (let start = 0; start < cost.length; start++) {
+      if (cost[start] || groups[start] !== -1) continue;
+      const id = sizes.length, queue = [start];
+      groups[start] = id;
+      for (let k = 0; k < queue.length; k++) {
+        const n = queue[k], x = n % cw, y = (n / cw) | 0;
+        for (const next of [x ? n - 1 : -1, x + 1 < cw ? n + 1 : -1,
+          y ? n - cw : -1, y + 1 < ch ? n + cw : -1]) {
+          if (next < 0 || cost[next] || groups[next] !== -1) continue;
+          groups[next] = id;
+          queue.push(next);
+        }
+      }
+      sizes.push(queue.length);
+    }
+    if (!sizes.length) return null;
+
+    const regionAt = (x, y) => {
+      const i = Math.floor(x * R), j = Math.floor(y * R);
+      return i >= 0 && j >= 0 && i < cw && j < ch ? groups[j * cw + i] : -1;
+    };
+    const seats = desks.map((d) => d.seat || d);
+    const occupation = new Array(sizes.length).fill(0);
+    for (const seat of seats) {
+      let nearest = -1, best = Infinity;
+      const i0 = Math.floor(seat.x * R), j0 = Math.floor(seat.y * R);
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const i = i0 + dx, j = j0 + dy;
+        if (i < 0 || j < 0 || i >= cw || j >= ch) continue;
+        const region = groups[j * cw + i];
+        if (region < 0 || dx * dx + dy * dy >= best) continue;
+        nearest = region;
+        best = dx * dx + dy * dy;
+      }
+      if (nearest !== -1) occupation[nearest]++;
+    }
+    let region = 0;
+    for (let i = 1; i < sizes.length; i++) {
+      if (occupation[i] > occupation[region] ||
+        (occupation[i] === occupation[region] && sizes[i] > sizes[region])) region = i;
+    }
+    const clear = (x, y, r = 0.23) =>
+      [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r],
+        [r * 0.7, r * 0.7], [r * 0.7, -r * 0.7],
+        [-r * 0.7, r * 0.7], [-r * 0.7, -r * 0.7]]
+        .every(([dx, dy]) => regionAt(x + dx, y + dy) === region);
+    const closeTo = (points, x, y, distance) =>
+      points.some((p) => Math.hypot(p.x - x, p.y - y) < distance);
+    const candidates = [];
+    for (let j = 2; j < ch - 2; j += 2) for (let i = 2; i < cw - 2; i += 2) {
+      const x = (i + 0.5) / R, y = (j + 0.5) / R;
+      if (!clear(x, y) || closeTo(seats, x, y, 1.05) ||
+        closeTo(pois, x, y, 0.72) || (door && closeTo([door], x, y, 0.85))) continue;
+      candidates.push({ x, y });
+    }
+    // Very small scene packs may have no clear 1-tile gap; use the best open tile
+    // rather than making the character disappear entirely.
+    if (!candidates.length) {
+      for (let j = 1; j < ch - 1; j++) for (let i = 1; i < cw - 1; i++) {
+        const x = (i + 0.5) / R, y = (j + 0.5) / R;
+        if (clear(x, y, 0.1) && !closeTo(seats, x, y, 0.4)) candidates.push({ x, y });
+      }
+    }
+    if (!candidates.length) return null;
+
+    const focus = seats.length
+      ? { x: seats.reduce((n, p) => n + p.x, 0) / seats.length,
+        y: seats.reduce((n, p) => n + p.y, 0) / seats.length }
+      : { x: W / 2, y: D / 2 };
+    const spotsNear = (center) => candidates.filter((p) => {
+      const d = Math.hypot(p.x - center.x, p.y - center.y);
+      return d >= 0.8 && d <= 4.7;
+    });
+    const rank = (p) => {
+      const closeSeats = seats.length ? Math.min(...seats.map((d) => Math.hypot(d.x - p.x, d.y - p.y))) : 3;
+      const neighbors = spotsNear(p).filter((q) => Math.hypot(q.x - p.x, q.y - p.y) < 2).length;
+      // A landmark needs open space, not a gap between desks. The foreground
+      // bias keeps it discoverable from the default isometric/3D camera.
+      const clearance = clear(p.x, p.y, 0.84) ? 0 : clear(p.x, p.y, 0.6) ? 1.5 : 4;
+      const foreground = (p.x / W + p.y / D) / 2;
+      return Math.hypot(p.x - focus.x, p.y - focus.y) * 0.6 +
+        Math.abs(closeSeats - 2.7) * 0.3 - Math.min(12, neighbors) * 0.14 +
+        clearance - foreground * 1.25;
+    };
+    // Compute scores once: sorting with full neighborhood scans per comparison
+    // becomes costly when a large office expands to many desks.
+    const rated = candidates.map((p) => ({ p, score: rank(p) }));
+    rated.sort((a, b) => a.score - b.score);
+    const helper = rated[0].p;
+    const spots = [];
+    // Fill the nearby ring first; if a very large team needs input, extend
+    // the queue across the same walkable region instead of stacking visitors.
+    const dist = (p) => Math.hypot(p.x - helper.x, p.y - helper.y);
+    for (const p of candidates.filter((p) => dist(p) >= 0.8).sort((a, b) => dist(a) - dist(b))) {
+      if (spots.some((s) => Math.hypot(s.x - p.x, s.y - p.y) < 0.72)) continue;
+      spots.push(p);
+      if (spots.length >= Math.max(8, desks.length)) break;
+    }
+    return { ...helper, spots };
+  }
+
   // ---------------------------------------------------------------- office
 
   class Office {
@@ -463,7 +571,9 @@
         { y: 2.2, color: '#c96442', text: 'SHIP IT' },
         { y: 4.6, color: '#10a37f', text: 'TESTS ✓' },
       ];
-      return { W, D, OW, OD, MR, PY, RW, grid, items, props, pois, desks, windows, posters, pp, door: { x: 0.4, y: D - 1.2 } };
+      const door = { x: 0.4, y: D - 1.2 };
+      return { W, D, OW, OD, MR, PY, RW, grid, items, props, pois, desks, windows, posters, pp, door,
+        helper: createHelper({ W, D, grid, desks, pois, door }) };
     }
 
     glassX(add, x, y, d) {
@@ -500,6 +610,24 @@
         for (const p of this.people.values()) { p.poi = null; p.napDesk = null; p.desk = null; p.until = 0; }
       }
 
+      // In scenes with a human helper, waiting sessions leave their desks to
+      // ask for input. Keep each visitor's spot stable across snapshots.
+      const helpSpots = this.plan.helper?.spots || [];
+      const waitingKeys = new Set(working.filter((s) => s.status === 'waiting').map((s) => s.key));
+      const helpOf = new Map();
+      const takenHelp = new Set();
+      for (const [key, person] of this.people) {
+        if (!waitingKeys.has(key) || !helpSpots.includes(person.helpSpot) || takenHelp.has(person.helpSpot)) continue;
+        helpOf.set(key, person.helpSpot);
+        takenHelp.add(person.helpSpot);
+      }
+      for (const session of working) {
+        if (session.status !== 'waiting' || helpOf.has(session.key) || !helpSpots.length) continue;
+        const spot = helpSpots.find((candidate) => !takenHelp.has(candidate)) || helpSpots[0];
+        helpOf.set(session.key, spot);
+        takenHelp.add(spot);
+      }
+
       const workKeys = new Set(working.map((s) => s.key));
       for (const k of [...this.deskOf.keys()]) if (!workKeys.has(k)) this.deskOf.delete(k);
       const used = new Set(this.deskOf.values());
@@ -527,10 +655,23 @@
         if (isWorker) {
           this.release(p);
           const desk = desks[this.deskOf.get(s.key)];
-          if (p.desk !== desk || p.mode !== 'work') { p.desk = desk; this.goTo(p, desk.seat); }
+          const helpSpot = helpOf.get(s.key) || null;
+          if (p.desk !== desk || p.mode !== 'work' || p.helpSpot !== helpSpot) {
+            p.desk = desk;
+            p.helpSpot = helpSpot;
+            // On initial load, let waiting agents visibly approach the human
+            // from their workstation instead of teleporting straight to help.
+            if (p.placeOnArrive && helpSpot) {
+              p.x = desk.seat.x;
+              p.y = desk.seat.y;
+              p.placeOnArrive = false;
+            }
+            this.goTo(p, helpSpot || desk.seat);
+          }
           p.mode = 'work';
         } else {
           if (p.mode !== 'wander') { p.mode = 'wander'; p.desk = null; p.poi = null; p.until = 0; }
+          p.helpSpot = null;
           // Someone started working at the desk this one was napping on.
           if (p.napDesk && takenDesks.has(p.napDesk)) { this.release(p); p.path = []; }
         }
@@ -541,6 +682,7 @@
           p.mode = 'leave';
           this.release(p);
           p.desk = null;
+          p.helpSpot = null;
           this.goTo(p, this.plan.door);
         }
       }
@@ -556,7 +698,7 @@
       const h = hash(s.key);
       const door = this.plan.door;
       return {
-        key: s.key, h, s,
+        key: s.key, h, s, helpSpot: null,
         skin: pick(SKIN, h, 3), hair: pick(HAIR, h, 7), pants: pick(PANTS, h, 13),
         shirt: pick(SHIRT[s.agent] || SHIRT.claude, h, 11),
         hairStyle: h % 4,
@@ -821,6 +963,119 @@
       this.onWall('x0', dy - 0.25, 0.85, (c) => { c.fillStyle = '#d8c48a'; c.beginPath(); c.arc(0, 0, 1.8, 0, Math.PI * 2); c.fill(); });
       this.poly([P(0.05, dy - 0.6), P(0.9, dy - 0.6), P(0.9, dy + 0.6), P(0.05, dy + 0.6)], pal.dark ? '#5a3b2e' : '#b9654a');
     }
+
+    helperWaiting() {
+      return [...this.people.values()].filter(
+        (p) => p.helpSpot && p.s.status === 'waiting',
+      ).length;
+    }
+
+    // Screen-space badge: a consistent size in small PiP views and large
+    // offices, rather than a tiny label scaled down with the floor plan.
+    drawHelperBadge(x, y, waiting = 0) {
+      const c = this.ctx;
+      const canvasW = this.cw || 320, canvasH = this.ch || 240;
+      const compact = this.compact || canvasW < 560;
+      const width = compact ? 130 : 156;
+      const height = compact ? 37 : 42;
+      const inset = typeof this.inset === 'function' ? this.inset() : 0;
+      const visibleWidth = Math.max(width + 16, canvasW - inset);
+      x = clamp(x, width / 2 + 8, visibleWidth - width / 2 - 8);
+      y = clamp(y, height / 2 + 8, canvasH - height / 2 - 12);
+      const top = y - height / 2;
+      c.save();
+      c.lineWidth = 2;
+      c.strokeStyle = waiting ? '#ffcf4a' : '#34cbd5';
+      c.beginPath();
+      c.moveTo(x, y + height / 2);
+      c.lineTo(x, y + height / 2 + 12);
+      c.stroke();
+      this.roundRect(x - width / 2, top, width, height, 11, '#172d3e', '#ffcf4a');
+      const iconX = x - width / 2 + 23;
+      c.beginPath();
+      c.arc(iconX, y, compact ? 12 : 14, 0, Math.PI * 2);
+      c.fillStyle = '#ffcf4a';
+      c.fill();
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillStyle = '#203444';
+      c.font = `900 ${compact ? 16 : 19}px ui-sans-serif, system-ui, sans-serif`;
+      c.fillText('?', iconX, y + 0.5);
+      const textX = x - width / 2 + (compact ? 44 : 48);
+      c.textAlign = 'left';
+      c.fillStyle = '#ffffff';
+      c.font = `800 ${compact ? 11 : 12}px ui-sans-serif, system-ui, sans-serif`;
+      c.fillText('HUMAN', textX, y - 7);
+      c.fillStyle = waiting ? '#ffcf4a' : '#5fe7e1';
+      c.font = `700 ${compact ? 8 : 9}px ui-sans-serif, system-ui, sans-serif`;
+      c.fillText(waiting ? `${waiting} WAITING` : 'HELP STATION', textX, y + 9);
+      c.restore();
+    }
+
+    // The one human operator is always on duty in the lab. It is deliberately
+    // taller and dressed in a white coat so it cannot be mistaken for an agent.
+    drawHuman() {
+      const { x, y } = this.plan.helper;
+      const c = this.ctx;
+      const foot = this.iso(x, y);
+      const visitors = this.helperWaiting();
+      const wave = visitors ? Math.sin(this.t / 240) * 4 : 0;
+      c.save();
+      c.translate(foot.x, foot.y);
+      c.fillStyle = 'rgba(16,32,47,.27)';
+      c.beginPath(); c.ellipse(0, 1, 14, 5, 0, 0, 2 * Math.PI); c.fill();
+
+      // Shoes, trousers and white laboratory coat.
+      c.fillStyle = '#253747';
+      c.fillRect(-8, -17, 6, 17);
+      c.fillRect(2, -17, 6, 17);
+      c.fillStyle = '#151e2b';
+      c.fillRect(-10, -3, 9, 4);
+      c.fillRect(2, -3, 9, 4);
+      c.fillStyle = '#dfe9ed';
+      c.beginPath();
+      c.moveTo(-13, -51); c.lineTo(13, -51); c.lineTo(15, -14);
+      c.lineTo(1, -12); c.lineTo(-15, -14); c.closePath(); c.fill();
+      c.strokeStyle = '#a7bdc9'; c.lineWidth = 1.1;
+      c.beginPath(); c.moveTo(0, -48); c.lineTo(0, -14); c.stroke();
+      c.fillStyle = '#f6fbfc';
+      c.beginPath(); c.moveTo(-7, -49); c.lineTo(0, -39); c.lineTo(-1, -33);
+      c.lineTo(-11, -47); c.fill();
+      c.beginPath(); c.moveTo(7, -49); c.lineTo(0, -39); c.lineTo(1, -33);
+      c.lineTo(11, -47); c.fill();
+      c.fillStyle = '#328ab8'; c.fillRect(4, -35, 7, 5);
+      c.fillStyle = '#f9d943'; c.fillRect(5, -34, 3, 1.5);
+
+      // One hand waves when the human has outstanding approvals.
+      c.strokeStyle = '#edf5f7'; c.lineWidth = 8; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(-11, -46); c.lineTo(-16, -27);
+      c.moveTo(11, -46); c.lineTo(17, visitors ? -61 + wave : -28); c.stroke();
+      c.fillStyle = '#e2ab86';
+      for (const [hx, hy] of [[-16, -26], [17, visitors ? -61 + wave : -27]]) {
+        c.beginPath(); c.arc(hx, hy, 4, 0, 2 * Math.PI); c.fill();
+      }
+
+      // Human face, brown hair and round glasses.
+      c.fillStyle = '#e6b18b';
+      c.fillRect(-4, -55, 8, 9);
+      c.beginPath(); c.ellipse(0, -68, 11, 14, 0, 0, 2 * Math.PI); c.fill();
+      c.fillStyle = '#45302c';
+      c.beginPath(); c.ellipse(0, -79, 11, 5.6, 0, 0, Math.PI * 2); c.fill();
+      c.fillRect(-11, -76, 3.3, 12);
+      c.fillRect(8, -77, 3.3, 11);
+      c.strokeStyle = '#344c5c'; c.lineWidth = 2;
+      c.beginPath(); c.arc(-5.2, -68, 4.5, 0, Math.PI * 2);
+      c.arc(5.2, -68, 4.5, 0, Math.PI * 2);
+      c.moveTo(-0.7, -68); c.lineTo(0.7, -68); c.stroke();
+      c.fillStyle = '#253747';
+      c.beginPath(); c.arc(-5, -68, 1.3, 0, Math.PI * 2);
+      c.arc(5, -68, 1.3, 0, Math.PI * 2); c.fill();
+      c.strokeStyle = '#905e47'; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(0, -61, 3, 0.12 * Math.PI, 0.88 * Math.PI); c.stroke();
+
+      c.restore();
+    }
+
 
     // ------------------------------------------------------------ furniture
 
@@ -1587,6 +1842,10 @@
         else if (p.napDesk) occupant.set(p.napDesk, p);
       }
       const items = [...this.plan.items];
+      if (this.plan.helper) {
+        const { x, y } = this.plan.helper;
+        items.push({ depth: x + y + 0.01, draw: () => this.drawHuman() });
+      }
       for (const dk of this.plan.desks) {
         const p = occupant.get(dk);
         items.push({ depth: dk.x + 0.7 + dk.y + 0.4, draw: () => this.desk(dk, p) });
@@ -1615,6 +1874,17 @@
         for (const [p, at] of heads) this.bubble(p, at);
       }
 
+      if (this.plan.helper) {
+        const h = this.plan.helper;
+        const anchor = this.iso(h.x, h.y, 2.65);
+        const px = anchor.x * this.cam.zoom + this.cam.ox;
+        const py = anchor.y * this.cam.zoom + this.cam.oy - 35;
+        c.save();
+        c.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+        this.drawHelperBadge(px, py, this.helperWaiting());
+        c.restore();
+      }
+
       if (this.offDuty > 0) {
         const d = this.iso(0.2, this.plan.door.y + 0.9, 0);
         c.font = '600 10px ui-sans-serif, system-ui, -apple-system, "PingFang TC", sans-serif';
@@ -1637,4 +1907,5 @@
   window.Office = Office;
   window.OFFICE_AGENT_BADGES = AGENT_BADGES;
   window.OfficeGrid = Grid;
+  window.OfficeHelper = createHelper;
 })();

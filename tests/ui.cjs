@@ -46,6 +46,20 @@ async function backToList(t){await t.click('#sideBack');await t.waitForFunction(
 async function resumeOf(t,key){await openAgent(t,key);const b=t.locator('#detailBody .copy');const v=(await b.count())?await b.getAttribute('data-copy'):null;await backToList(t);return v}
 // The agent filter lives in a toolbar menu.
 async function filterAgent(t,v){if(!(await t.evaluate(()=>document.getElementById('agentMenu').open)))await t.click('#agentMenu > summary');await t.click(`#agentChips [data-v="${v}"]`);await t.keyboard.press('Escape')}
+async function humanLandmark(target, active = true) {
+  return target.evaluate((expectsAttention) => {
+    const words = [];
+    const ctx = office.ctx;
+    const original = ctx.fillText;
+    ctx.fillText = function (value, ...args) {
+      words.push(String(value));
+      return original.call(this, value, ...args);
+    };
+    try { office.frame(performance.now()); } finally { ctx.fillText = original; }
+    return words.includes('HUMAN') &&
+      words.some((word) => expectsAttention ? /WAITING$/.test(word) : word === 'HELP STATION');
+  }, active);
+}
 async function drawnLogos(target) {
  await target.waitForFunction(()=>Object.values(OFFICE_AGENT_BADGES).every(b=>b.image.complete&&b.image.naturalWidth>0));
  return target.evaluate(()=>{
@@ -84,6 +98,13 @@ async function drawnLogos(target) {
   assert.equal(await page.evaluate(()=>state.full&&document.body.classList.contains('full')),true,'full screen is the default');
   assert.equal(await page.locator('#side .srow').count()>0,true,'the agent panel lists the team');
   check('full screen with the agent panel is the default');
+  assert.equal(await page.evaluate(() => {
+    const p = office.people.get('codex:two');
+    return !!office.plan.helper && !!p.helpSpot &&
+      typeof office.drawHuman === 'function' && !office.people.has('human');
+  }), true, 'normal 2D office includes a separate human and waiting-session visitor');
+  assert.equal(await humanLandmark(page), true, '2D badge names the human and shows attention');
+  check('regular 2D office includes human and a waiting visitor');
   assert.equal(await page.locator('#fullBtn').count(),0,'there is no way back to the old layout');
   assert.equal(await page.locator('h1 [data-t]').innerText(),"What's my agent doing");
   await openSettings(page);
@@ -175,6 +196,12 @@ async function drawnLogos(target) {
   await page.click('#qualSeg [data-v=high]');
   await page.waitForFunction(()=>officeKind==='high:office'&&office?.loaded&&office.framesShown>4,{},{timeout:30000});
   assert.deepEqual([...new Set(await badges(page))].sort(),['Cl','Cx','G','OMP']);
+  assert.equal(await page.evaluate(() => {
+    const p = office.people.get('codex:two');
+    return !!office.humanHelper?.obj && !!office.plan.helper && !!p.helpSpot;
+  }), true, 'normal 3D office includes human and waiting visitor');
+  assert.equal(await humanLandmark(page), true, '3D human badge stays screen-readable');
+  check('regular 3D office includes human and a waiting visitor');
   await screenshot(page, 'office-3d');
   assert.deepEqual(await drawnLogos(page),['claude','codex','gemini','omp']);
   check('3D shows the same four provider badges');
@@ -432,6 +459,114 @@ async function drawnLogos(target) {
   }
   check('settings close with Escape/outside click, restore focus, and fit narrow and wide screens in both themes');
   }
+  // The optional laboratory uses the same session state in 2D and 3D.
+  // Its human helper must never create a fake session in the agent panel.
+  const labPage = await context.newPage();
+  await labPage.goto(base + '/?view=office&quality=mid&scene=minions');
+  await labPage.waitForFunction(() => officeKind === 'mid:minions' && office.framesShown > 4);
+  await stable(labPage);
+  assert.equal(await labPage.evaluate(() => {
+    const visitor = office.people.get('codex:two');
+    return !!office.plan.helper && typeof office.drawHuman === 'function' &&
+      !!visitor.helpSpot && visitor.s.status === 'waiting' &&
+      !office.people.has('human');
+  }), true);
+  assert.equal(await labPage.evaluate(() => ['conveyor', 'drone', 'vent', 'banana-bot']
+    .every((type) => office.plan.props.some((p) => p.special === type))), true);
+  assert.equal(await labPage.evaluate(() => office.plan.ambient?.length === 3 &&
+    office.plan.ambient.every((p) => !office.people.has(p.key))), true);
+  const first2D = await labPage.evaluate(() => {
+    const p = office.plan.ambient[0];
+    return [p.key, p.x, p.y];
+  });
+  await labPage.waitForFunction(([key, x, y]) => {
+    const p = office.plan.ambient.find((n) => n.key === key);
+    return p && Math.hypot(p.x - x, p.y - y) > 0.2;
+  }, first2D, { timeout: 10000 });
+  check('2D Minions roam independently of real agent sessions');
+  await screenshot(labPage, 'minions-helper-2d');
+  assert.equal(await humanLandmark(labPage), true);
+  check('2D laboratory draws a separate human and routes waiting agents to it');
+
+  await labPage.click('#qualSeg [data-v=high]');
+  await labPage.waitForFunction(() => officeKind === 'high:minions' &&
+    office.loaded && office.humanHelper && office.framesShown > 4, {}, { timeout: 30000 });
+  assert.equal(await labPage.evaluate(() => {
+    const visitor = office.people.get('codex:two');
+    return !!office.humanHelper.obj && !!visitor.helpSpot &&
+      !office.people.has('human');
+  }), true);
+  assert.equal(await humanLandmark(labPage), true);
+  const ambient = await labPage.evaluate(() => ({
+    droneX: office.labFx?.drones[0]?.obj.position.x,
+    tanks: office.labFx?.tanks.length, consoles: office.labFx?.consoles.length,
+    bots: office.labFx?.bots.length, vents: office.labFx?.vents.length,
+    conveyors: office.labFx?.conveyors.length,
+  }));
+  assert.equal(ambient.tanks, 2);
+  assert.equal(ambient.consoles, 8);
+  assert.ok(ambient.bots && ambient.vents && ambient.conveyors);
+  assert.equal(await labPage.evaluate(() => office.ambientActors?.length === 3 &&
+    office.ambientActors.every(({ npc }) => !office.people.has(npc.key) &&
+      !office.actors.has(npc.key))), true);
+  const first3D = await labPage.evaluate(() => {
+    const { npc } = office.ambientActors[0]; return [npc.x, npc.y];
+  });
+  await labPage.waitForFunction(([x, y]) => {
+    const { npc } = office.ambientActors[0];
+    return Math.hypot(npc.x - x, npc.y - y) > 0.2;
+  }, first3D, { timeout: 10000 });
+  check('3D Minions follow individual activity routes without fake session actors');
+  await labPage.waitForFunction((firstX) => !!office.labFx?.drones.length &&
+    Math.abs(office.labFx.drones[0].obj.position.x - firstX) > 0.05,
+  ambient.droneX, { timeout: 5000 });
+  check('Minions 3D ambient machines and drones animate without session changes');
+  await screenshot(labPage, 'minions-helper-3d');
+  await labPage.evaluate((updated) => onData({ now: Date.now(), sessions: updated }),
+    sessions.map((s) => s.key === 'codex:two' ? { ...s, status: 'typing' } : s));
+  assert.equal(await labPage.evaluate(() => {
+    const p = office.people.get('codex:two');
+    const goal = p.path.at(-1);
+    return p.helpSpot === null && goal &&
+      Math.abs(goal.x - p.desk.seat.x) < 0.01 &&
+      Math.abs(goal.y - p.desk.seat.y) < 0.01;
+  }), true);
+  assert.equal(await humanLandmark(labPage, false), true,
+    'human marker remains visible when nobody is waiting');
+  check('3D laboratory human stays visible while resumed agents return to work');
+  // Exercise a scene without an explicit helper entry, like downloadable packs.
+  // Intercept the pack manifest so this test remains self-contained/offline.
+  const customScene = {
+    id: 'test-map', version: 1, name: { en: 'Test Map' },
+    W: 12, D: 10, viewH: 2.8, background: '#cce0e8',
+    spawn: { x: 1, y: 9 },
+    walk: [[0.5, 0.5, 11.5, 9.5]],
+    solid: [[6, 5, 1.2, 0.8]],
+    stations: [{ x: 2, y: 2 }, { x: 4, y: 2 }, { x: 8, y: 2 }, { x: 8, y: 7 }],
+    pois: [{ x: 10, y: 8.5, act: 'coffee' }],
+    props: [{ special: 'floor', x: 0, y: 0, w: 12, d: 10, color: '#a7c5b1', color2: '#94b89e' }],
+  };
+  await labPage.route('**/scenes/test-map/manifest.json', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(customScene) }));
+  await labPage.evaluate((latest) => onData({ now: Date.now(), sessions: latest }), sessions);
+  await labPage.evaluate(() => {
+    state.scenes.push({ id: 'test-map', name: { en: 'Test Map' } });
+    state.scene = 'test-map';
+    return makeOffice();
+  });
+  await labPage.waitForFunction(() => officeKind === 'high:test-map' &&
+    office.loaded && office.humanHelper && office.framesShown > 4, {}, { timeout: 30000 });
+  assert.equal(await labPage.evaluate(() => {
+    const p = office.people.get('codex:two');
+    return office.plan.scene.id === 'test-map' && !!office.plan.helper &&
+      office.plan.helper.spots.length > 1 && !!office.humanHelper.obj &&
+      !!p.helpSpot && !office.people.has('human');
+  }), true);
+  await screenshot(labPage, 'human-helper-external-scene');
+  assert.equal(await humanLandmark(labPage), true);
+  check('downloadable 3D map without explicit helper has a reachable human and visitor');
+  await labPage.close();
+
   assert.deepEqual(errors,[]);check('no uncaught browser errors');
   console.log('TOTAL',checks.length);
  } finally {

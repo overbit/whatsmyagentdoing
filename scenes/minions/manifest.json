@@ -1,0 +1,592 @@
+{
+  "id": "minions",
+  "version": 1,
+  "name": {
+    "en": "Minions Lab",
+    "zh-TW": "小小兵實驗室",
+    "zh-CN": "小黄人实验室",
+    "ja": "ミニオン研究所",
+    "ko": "미니언 연구소",
+    "es": "Laboratorio Minion",
+    "fr": "Laboratoire des Minions",
+    "de": "Minions-Labor",
+    "pt": "Laboratório dos Minions",
+    "ru": "Лаборатория миньонов"
+  },
+  "credits": "Original procedural Minions-inspired fan art; no film models, textures, or audio are distributed.",
+  "icon": "🧪",
+  "W": 16,
+  "D": 12,
+  "viewH": 3.05,
+  "background": "#9ac6d1",
+  "sky": "#9ac6d1",
+  "fixedSky": false,
+  "spawn": {
+    "x": 1.1,
+    "y": 10.8
+  },
+  "helper": {
+    "x": 10.3,
+    "y": 10.1,
+    "spots": [
+      {
+        "x": 9.6,
+        "y": 8.95
+      },
+      {
+        "x": 10.5,
+        "y": 8.72
+      },
+      {
+        "x": 11.35,
+        "y": 9.05
+      },
+      {
+        "x": 11.55,
+        "y": 10.15
+      },
+      {
+        "x": 11.2,
+        "y": 11.25
+      },
+      {
+        "x": 10,
+        "y": 11.35
+      },
+      {
+        "x": 9.05,
+        "y": 10.7
+      },
+      {
+        "x": 9.05,
+        "y": 9.6
+      }
+    ]
+  },
+  "walk": [
+    [
+      0.3,
+      0.3,
+      15.7,
+      11.7
+    ]
+  ],
+  "solid": [
+    [
+      12.5,
+      2.4,
+      2.2,
+      1.25
+    ],
+    [
+      13,
+      7.3,
+      1.3,
+      1.6
+    ],
+    [
+      1.5,
+      8.7,
+      2.3,
+      1
+    ],
+    [
+      6,
+      9.45,
+      2.5,
+      0.65
+    ]
+  ],
+  "stations": [
+    {
+      "x": 2.6,
+      "y": 3.1,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 5.2,
+      "y": 3.1,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 7.8,
+      "y": 3.1,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 10.4,
+      "y": 3.1,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 2.6,
+      "y": 6.2,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 5.2,
+      "y": 6.2,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 7.8,
+      "y": 6.2,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    },
+    {
+      "x": 10.4,
+      "y": 6.2,
+      "pose": "stand",
+      "yaw": 45,
+      "anim": "interact-right"
+    }
+  ],
+  "pois": [
+    {
+      "x": 1.7,
+      "y": 9.95,
+      "act": "fridge",
+      "yaw": 15,
+      "emoji": "🍌"
+    },
+    {
+      "x": 3.7,
+      "y": 10.4,
+      "act": "coffee",
+      "yaw": 45,
+      "emoji": "🍌"
+    },
+    {
+      "x": 5.45,
+      "y": 10.4,
+      "act": "read",
+      "yaw": 0,
+      "emoji": "📋"
+    },
+    {
+      "x": 8.7,
+      "y": 10.3,
+      "act": "whiteboard",
+      "yaw": 15,
+      "emoji": "🧪"
+    },
+    {
+      "x": 11.25,
+      "y": 9,
+      "act": "arcade",
+      "yaw": 30,
+      "emoji": "⚡"
+    },
+    {
+      "x": 12.1,
+      "y": 5.7,
+      "act": "window",
+      "yaw": 90,
+      "emoji": "🫧"
+    },
+    {
+      "x": 5.2,
+      "y": 8.6,
+      "act": "stool",
+      "yaw": 45,
+      "emoji": "🍌"
+    },
+    {
+      "x": 4.1,
+      "y": 10.45,
+      "act": "eat-banana",
+      "yaw": 0,
+      "emoji": "🍌"
+    },
+    {
+      "x": 5.25,
+      "y": 8.5,
+      "act": "eat-banana",
+      "yaw": 30,
+      "emoji": "🍌"
+    },
+    {
+      "x": 12,
+      "y": 4.2,
+      "act": "inspect",
+      "yaw": 75,
+      "emoji": "🔬"
+    },
+    {
+      "x": 7.7,
+      "y": 8.45,
+      "act": "chat",
+      "yaw": 20,
+      "emoji": "💬"
+    },
+    {
+      "x": 5.05,
+      "y": 7.75,
+      "act": "dance",
+      "yaw": 20,
+      "emoji": "♫"
+    }
+  ],
+  "props": [
+    {
+      "special": "floor",
+      "x": 0,
+      "y": 0,
+      "w": 16,
+      "d": 12,
+      "color": "#d0dce3",
+      "color2": "#b7c9d2",
+      "pattern": "checker",
+      "tile": 2
+    },
+    {
+      "special": "wall",
+      "axis": "x",
+      "x": 0,
+      "y": 0,
+      "len": 16,
+      "h": 3,
+      "t": 0.18,
+      "color": "#41687b",
+      "frame": "#213c4b",
+      "holes": [
+        [
+          1.6,
+          2.2,
+          1.1,
+          2.3
+        ],
+        [
+          5,
+          2.2,
+          1.1,
+          2.3
+        ],
+        [
+          9.2,
+          2.2,
+          1.1,
+          2.3
+        ]
+      ]
+    },
+    {
+      "special": "wall",
+      "axis": "z",
+      "x": 0,
+      "y": 0,
+      "len": 12,
+      "h": 3,
+      "t": 0.18,
+      "color": "#31586b",
+      "frame": "#213c4b",
+      "holes": [
+        [
+          2.1,
+          2.2,
+          1,
+          2.35
+        ]
+      ]
+    },
+    {
+      "special": "sign",
+      "x": 12.5,
+      "y": 0.2,
+      "z": 2.33,
+      "w": 2.8,
+      "h": 0.54,
+      "text": "GRU LABS",
+      "bg": "#152d40",
+      "fg": "#ffd638",
+      "border": "#f5b72c"
+    },
+    {
+      "special": "sign",
+      "x": 0.19,
+      "y": 6.8,
+      "z": 2.1,
+      "w": 1.5,
+      "h": 0.5,
+      "text": "BANANA\nRESEARCH",
+      "face": "+x",
+      "bg": "#f9ce38",
+      "fg": "#152d40"
+    },
+    {
+      "special": "lab-console",
+      "x": 2.6,
+      "y": 3.1
+    },
+    {
+      "special": "lab-console",
+      "x": 5.2,
+      "y": 3.1
+    },
+    {
+      "special": "lab-console",
+      "x": 7.8,
+      "y": 3.1
+    },
+    {
+      "special": "lab-console",
+      "x": 10.4,
+      "y": 3.1
+    },
+    {
+      "special": "lab-console",
+      "x": 2.6,
+      "y": 6.2
+    },
+    {
+      "special": "lab-console",
+      "x": 5.2,
+      "y": 6.2
+    },
+    {
+      "special": "lab-console",
+      "x": 7.8,
+      "y": 6.2
+    },
+    {
+      "special": "lab-console",
+      "x": 10.4,
+      "y": 6.2
+    },
+    {
+      "special": "tank",
+      "x": 13.1,
+      "y": 3,
+      "r": 0.62,
+      "h": 1.95,
+      "liquid": "#a4fa64"
+    },
+    {
+      "special": "tank",
+      "x": 14.4,
+      "y": 3,
+      "r": 0.47,
+      "h": 1.45,
+      "liquid": "#68dcf5"
+    },
+    {
+      "special": "rocket",
+      "x": 13.5,
+      "y": 8.1
+    },
+    {
+      "special": "banana",
+      "x": 2.2,
+      "y": 9.3
+    },
+    {
+      "special": "banana",
+      "x": 2.7,
+      "y": 9.2
+    },
+    {
+      "special": "banana",
+      "x": 3.1,
+      "y": 9.45
+    },
+    {
+      "special": "box",
+      "x": 1.4,
+      "y": 8.7,
+      "w": 2.4,
+      "d": 1.1,
+      "h": 0.72,
+      "color": "#5f7a8d"
+    },
+    {
+      "special": "conveyor",
+      "x": 6,
+      "y": 9.45,
+      "w": 2.5,
+      "d": 0.7,
+      "h": 0.75
+    },
+    {
+      "special": "pipe",
+      "x": 12.6,
+      "y": 0.55,
+      "w": 2.4,
+      "h": 2.45
+    },
+    {
+      "special": "glow",
+      "x": 11.8,
+      "y": 6.25,
+      "y0": 0.012,
+      "w": 0.14,
+      "d": 4.8,
+      "h": 0.015,
+      "color": "#ffd83a",
+      "intensity": 0.7
+    },
+    {
+      "special": "glow",
+      "x": 12.4,
+      "y": 6.25,
+      "y0": 0.012,
+      "w": 0.14,
+      "d": 4.8,
+      "h": 0.015,
+      "color": "#ffd83a",
+      "intensity": 0.7
+    },
+    {
+      "special": "lamp",
+      "x": 3.6,
+      "y": 4.7,
+      "z": 2.6,
+      "intensity": 1.5,
+      "range": 7,
+      "color": "#fff3ae"
+    },
+    {
+      "special": "lamp",
+      "x": 9.5,
+      "y": 6.3,
+      "z": 2.6,
+      "intensity": 1.3,
+      "range": 7,
+      "color": "#fff3ae"
+    },
+    {
+      "special": "drone",
+      "x": 8.2,
+      "y": 1.65,
+      "height": 1.75,
+      "range": 1.6
+    },
+    {
+      "special": "vent",
+      "x": 13.5,
+      "y": 5.4
+    },
+    {
+      "special": "banana-bot",
+      "x": 3.4,
+      "y": 10.45,
+      "range": 1
+    }
+  ],
+  "ambientActivities": [
+    {
+      "id": "banana-pile",
+      "x": 4.25,
+      "y": 10.3,
+      "act": "eat-banana",
+      "hold": 5
+    },
+    {
+      "id": "banana-conveyor",
+      "x": 5.45,
+      "y": 8.65,
+      "act": "eat-banana",
+      "hold": 5.5
+    },
+    {
+      "id": "banana-break",
+      "x": 3.5,
+      "y": 8.2,
+      "act": "eat-banana",
+      "hold": 5
+    },
+    {
+      "id": "chat-west",
+      "x": 7.5,
+      "y": 8.1,
+      "act": "chat",
+      "hold": 5
+    },
+    {
+      "id": "chat-east",
+      "x": 8.4,
+      "y": 8.1,
+      "act": "chat",
+      "hold": 5
+    },
+    {
+      "id": "inspect-tank",
+      "x": 12,
+      "y": 4.1,
+      "act": "inspect",
+      "hold": 4.5
+    },
+    {
+      "id": "inspect-machine",
+      "x": 8.9,
+      "y": 7.3,
+      "act": "inspect",
+      "hold": 4
+    },
+    {
+      "id": "dance",
+      "x": 5.1,
+      "y": 7.7,
+      "act": "dance",
+      "hold": 4
+    },
+    {
+      "id": "stretch",
+      "x": 3.2,
+      "y": 7.7,
+      "act": "stretch",
+      "hold": 3.5
+    }
+  ],
+  "ambientMinions": [
+    {
+      "id": "bob",
+      "x": 4,
+      "y": 7.8,
+      "h": 121,
+      "route": [
+        "banana-break",
+        "chat-west",
+        "inspect-machine",
+        "dance"
+      ]
+    },
+    {
+      "id": "stuart",
+      "x": 7.4,
+      "y": 7.6,
+      "h": 245,
+      "route": [
+        "chat-east",
+        "banana-conveyor",
+        "inspect-tank",
+        "dance"
+      ]
+    },
+    {
+      "id": "kevin",
+      "x": 10.8,
+      "y": 6.9,
+      "h": 374,
+      "route": [
+        "inspect-tank",
+        "chat-east",
+        "banana-pile",
+        "stretch"
+      ]
+    }
+  ]
+}

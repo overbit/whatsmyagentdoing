@@ -7,6 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { installMinions3D } from '/minions3d.js';
 
 const CHARACTERS = ['male-a', 'male-b', 'male-c', 'male-d', 'male-e', 'male-f',
   'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'];
@@ -47,7 +48,9 @@ function scenePlan(def) {
   }));
   return {
     W: def.W, D: def.D, viewH: def.viewH, grid, items: [], props: [], pois, desks,
-    windows: [], posters: [], pp: null, door: def.spawn, fixed: true, noNap: true, terrain: !!def.terrain, scene: def,
+    windows: [], posters: [], pp: null, door: def.spawn,
+    helper: def.helper || window.OfficeHelper({ W: def.W, D: def.D, grid, desks, pois, door: def.spawn }),
+    fixed: true, noNap: true, terrain: !!def.terrain, scene: def,
   };
 }
 
@@ -1261,3 +1264,6 @@ export class Office3D extends window.Office {
     super.pointer(e, click);
   }
 }
+
+// Add the opt-in laboratory without modifying the regular office or scene packs.
+installMinions3D(Office3D, THREE);
