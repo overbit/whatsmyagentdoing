@@ -9,6 +9,7 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 const STATIC = {
   '/': ['index.html', 'text/html; charset=utf-8'],
   '/office.js': ['office.js', 'text/javascript; charset=utf-8'],
+  '/minions-ambient.js': ['minions-ambient.js', 'text/javascript; charset=utf-8'],
   '/minions2d.js': ['minions2d.js', 'text/javascript; charset=utf-8'],
   '/minions3d.js': ['minions3d.js', 'text/javascript; charset=utf-8'],
   '/office3d.js': ['office3d.js', 'text/javascript; charset=utf-8'],
