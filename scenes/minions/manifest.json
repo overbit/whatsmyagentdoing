@@ -204,6 +204,41 @@
       "act": "stool",
       "yaw": 45,
       "emoji": "🍌"
+    },
+    {
+      "x": 4.1,
+      "y": 10.45,
+      "act": "eat-banana",
+      "yaw": 0,
+      "emoji": "🍌"
+    },
+    {
+      "x": 5.25,
+      "y": 8.5,
+      "act": "eat-banana",
+      "yaw": 30,
+      "emoji": "🍌"
+    },
+    {
+      "x": 12,
+      "y": 4.2,
+      "act": "inspect",
+      "yaw": 75,
+      "emoji": "🔬"
+    },
+    {
+      "x": 7.7,
+      "y": 8.45,
+      "act": "chat",
+      "yaw": 20,
+      "emoji": "💬"
+    },
+    {
+      "x": 5.05,
+      "y": 7.75,
+      "act": "dance",
+      "yaw": 20,
+      "emoji": "♫"
     }
   ],
   "props": [
@@ -449,6 +484,109 @@
       "x": 3.4,
       "y": 10.45,
       "range": 1
+    }
+  ],
+  "ambientActivities": [
+    {
+      "id": "banana-pile",
+      "x": 4.25,
+      "y": 10.3,
+      "act": "eat-banana",
+      "hold": 5
+    },
+    {
+      "id": "banana-conveyor",
+      "x": 5.45,
+      "y": 8.65,
+      "act": "eat-banana",
+      "hold": 5.5
+    },
+    {
+      "id": "banana-break",
+      "x": 3.5,
+      "y": 8.2,
+      "act": "eat-banana",
+      "hold": 5
+    },
+    {
+      "id": "chat-west",
+      "x": 7.5,
+      "y": 8.1,
+      "act": "chat",
+      "hold": 5
+    },
+    {
+      "id": "chat-east",
+      "x": 8.4,
+      "y": 8.1,
+      "act": "chat",
+      "hold": 5
+    },
+    {
+      "id": "inspect-tank",
+      "x": 12,
+      "y": 4.1,
+      "act": "inspect",
+      "hold": 4.5
+    },
+    {
+      "id": "inspect-machine",
+      "x": 8.9,
+      "y": 7.3,
+      "act": "inspect",
+      "hold": 4
+    },
+    {
+      "id": "dance",
+      "x": 5.1,
+      "y": 7.7,
+      "act": "dance",
+      "hold": 4
+    },
+    {
+      "id": "stretch",
+      "x": 3.2,
+      "y": 7.7,
+      "act": "stretch",
+      "hold": 3.5
+    }
+  ],
+  "ambientMinions": [
+    {
+      "id": "bob",
+      "x": 4,
+      "y": 7.8,
+      "h": 121,
+      "route": [
+        "banana-break",
+        "chat-west",
+        "inspect-machine",
+        "dance"
+      ]
+    },
+    {
+      "id": "stuart",
+      "x": 7.4,
+      "y": 7.6,
+      "h": 245,
+      "route": [
+        "chat-east",
+        "banana-conveyor",
+        "inspect-tank",
+        "dance"
+      ]
+    },
+    {
+      "id": "kevin",
+      "x": 10.8,
+      "y": 6.9,
+      "h": 374,
+      "route": [
+        "inspect-tank",
+        "chat-east",
+        "banana-pile",
+        "stretch"
+      ]
     }
   ]
 }
